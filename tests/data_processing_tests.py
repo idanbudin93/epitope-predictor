@@ -1,3 +1,5 @@
+__author__ = 'Idan Budin'
+
 import unittest
 from os import path
 
