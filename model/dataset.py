@@ -3,8 +3,9 @@ __author__ = 'Idan Budin'
 from os import path
 from typing import Dict, ItemsView
 
-from biotite import sequence as seq
 from biotite.sequence import align
+
+from model.protein_sequence import ProteinSequence
 
 
 class Dataset:
@@ -13,7 +14,7 @@ class Dataset:
 
     Parameters
     ----------
-    fasta : str
+    fasta : :class:`str`
         The path of FASTA file or a FASTS file content
 
     Raises
@@ -26,7 +27,7 @@ class Dataset:
         if input FASTA path "{fasta_path}" has odd number of lines
     AssertionError
         If input FASTA path 'Line {lineNumber} in Input FASTA path "{fasta_path}" should start with ">"
-        biotite.sequence.AlphabetError
+    biotite.sequence.AlphabetError
         If Symbol {noProteinSymbol} is not in the alphabet'
     """
 
@@ -38,7 +39,7 @@ class Dataset:
         else:
             self.__dataset_dict = self.__read_str(fasta)
 
-    def __read_fasta(self, fasta_path: str) -> Dict[str, str]:
+    def __read_fasta(self, fasta_path: str) -> Dict[str, ProteinSequence]:
         assert path.isfile(fasta_path), f'Input FASTA path "{fasta_path}" does not exists'
         assert path.splitext(fasta_path)[1] in self.fasta_extensions, \
             f'Input file "{fasta_path}" is not FASTA extension'
@@ -49,7 +50,7 @@ class Dataset:
 
         return sequences_dict
 
-    def __read_str(self, fasta_text: str) -> Dict[str, str]:
+    def __read_str(self, fasta_text: str) -> Dict[str, ProteinSequence]:
         sequences_dict = dict()
 
         lines = fasta_text.splitlines()
@@ -67,9 +68,7 @@ class Dataset:
             assert key_line.startswith('>'), f'Line {i + 1} in Input FASTA should start with ">"'
 
             key = key_line[1:].strip()
-            val = val_line.strip()
-            # asserting that value is legal Protein Sequence
-            seq.ProteinSequence(val)
+            val = ProteinSequence(val_line.strip())
             sequences_dict.update({key: val})
 
         return sequences_dict
@@ -80,7 +79,7 @@ class Dataset:
 
         Parameters
         ----------
-        output_fasta_path : str
+        output_fasta_path : :class:`str`
             The path of the output FASTA file
 
         Raises
@@ -102,29 +101,6 @@ class Dataset:
         with open(output_fasta_path, 'w') as fasta_file:
             fasta_file.writelines(text)
 
-    def __are_seqs_homologs(self,
-                            seq1: str,
-                            seq2: str,
-                            substitution_matrix: align.SubstitutionMatrix,
-                            threshold: float = 0.8) -> bool:
-        assert 0 <= threshold <= 1, f'Homologs threshold {threshold} is not between 0 and 1'
-
-        protein_seq1 = seq.ProteinSequence(seq1)
-        protein_seq2 = seq.ProteinSequence(seq2)
-
-        alignment = align.align_optimal(protein_seq1, protein_seq2, substitution_matrix, terminal_penalty=False)[0]
-
-        try:
-            identity = align.get_sequence_identity(alignment)
-            if identity >= threshold:
-                are_homologs = True
-            else:
-                are_homologs = False
-        except ValueError:
-            are_homologs = False
-
-        return are_homologs
-
     def remove_homologs(self,
                         substitution_matrix: align.SubstitutionMatrix = align.SubstitutionMatrix.std_protein_matrix(),
                         threshold: float = 0.8):
@@ -133,10 +109,10 @@ class Dataset:
 
         Parameters
         ----------
-        substitution_matrix : biotite.sequence.align.SubstitutionMatrix, optional
+        substitution_matrix : :class:`align.SubstitutionMatrix`, optional
             A substitution matrix for scoring the sequences alignment
-            (Default: the default SubstitutionMatrix for protein sequence alignments, which is BLOSUM62)
-        threshold : float, optional
+            (Default: the default :class:`align.SubstitutionMatrix` for protein sequence alignments, which is BLOSUM62)
+        threshold : :class:`float`, optional
              A threshold of non-homologous sequences (Default: 0.8)
 
         Raises
@@ -154,7 +130,7 @@ class Dataset:
                 key1, seq1 = seqs_items_list[i]
                 key2, seq2 = seqs_items_list[j]
                 if key1 in self.__dataset_dict and key2 in self.__dataset_dict:
-                    if self.__are_seqs_homologs(seq1, seq2, substitution_matrix, threshold=threshold):
+                    if seq1.is_homolog(seq2, substitution_matrix, threshold=threshold):
                         shorter_seq_list_ind = i if len(seq1) < len(seq2) else j
                         shorter_seq_dict_key = seqs_items_list[shorter_seq_list_ind][0]
                         del self.__dataset_dict[shorter_seq_dict_key]
@@ -163,24 +139,24 @@ class Dataset:
         lines = []
 
         for key, val in self.sequences():
-            # asserting that value is legal Protein Sequence by trying to convert it into
-            # biotite.sequence.ProteinSequence
-            seq.ProteinSequence(val)
             lines.append('>' + key)
-            lines.append(val)
+            lines.append(str(val))
 
         text = '\n'.join(lines)
 
         return text
 
-    def sequences(self) -> ItemsView[str, str]:
+    def sequences(self) -> ItemsView[str, ProteinSequence]:
         """
         Gets a view object that displays a list of dataset's (sequence_key, sequence) tuple pairs.
 
         Returns
         ------
-        sequences : ItemsView[str, str]
+        sequences : :class:`ItemsView`[:class:`str`, :class:`str`]
             A view object that displays a list of dataset's (sequence_key, sequence) tuple pairs
 
         """
         return self.__dataset_dict.items()
+
+    def __len__(self) -> int:
+        return len(self.__dataset_dict)
