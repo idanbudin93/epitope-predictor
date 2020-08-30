@@ -2,11 +2,12 @@ import os
 import csv
 import re
 import xml.etree.ElementTree as et
+import pathlib
 
 from Bio import Entrez, SeqIO
 
-SRC_PATH = '/home/userors/academics/epishop/tcell_full_v3.csv'
-DEST_PATH = '/home/userors/academics/epishop/parsed_epitopes/epitope_batch_{batch_number}'
+SRC_PATH = './samples/tcell_full_v3.csv'
+DEST_PATH = './samples/parsed_epitopes/epitope_batch_{batch_number}'
 BATCH_FILE_SIZE = 5000  # soft limit
 BATCH_REQUEST_SIZE = 20
 
@@ -135,7 +136,47 @@ def parse_epitope_batch(epitope_batch, output_file, existing_epitopes):
 
     return added_epitopes
 
+def make_samples():
+    pathlib.Path('./samples/parsed_epitopes').mkdir(exist_ok=True)
+    file_entries = 0
+    output_batch = 1
+    output_file = open(DEST_PATH.format(batch_number=output_batch), 'w+')
+    added_antigens = dict()
 
+    for epitope_batch in iterate_epitopes_batched(SRC_PATH):
+        if file_entries >= BATCH_FILE_SIZE:
+            output_file.close()
+            output_batch += 1
+            output_file = open(DEST_PATH.format(batch_number=output_batch), 'w+')
+            file_entries = 0
+
+        file_entries += parse_epitope_batch(epitope_batch, output_file, added_antigens)
+
+#====================Smadar=====================
+#PATH_TO_PARSED_SAMPLES = './samples/parsed_epitopes'
+#PATH_TO_PARSED_CLEAN_SAMPLES = './samples/parsed_clean_epitopes'
+
+def Clean_id_lines_from_samples(path_to_parsed_samples, path_to_parsed_clean_samples):
+    """ 
+    cleans the files that are holding proteins (in 'path_to_parse_samples'), 
+    in porpuse of the file to hold the antigens sequences only, 
+    with line seperator in between two successive antigens 
+    """
+    os.mkdir(path_to_parsed_clean_samples) #opening a directory to hold ckean data, ready for char_maps
+
+    parsed_antigens = pathlib.Path(path_to_parsed_samples)
+    for each_file in parsed_antigens.iterdir():
+        cleaned_name = "".join((each_file.name, "_clean_text.text"))
+    
+        cleaned_file = open("/".join((path_to_parsed_clean_samples, cleaned_name)), 'w+')
+        with open("/".join((path_to_parsed_samples, each_file.name)), 'r') as unclean_parsed_protein:
+            for line in unclean_parsed_protein.readlines():
+                if line[0] != '\n' and line[0] != '>':
+                    cleaned_file.write(line)
+        cleaned_file.close()
+    return 
+    
+ #================================================================   
 if __name__ == "__main__":
     file_entries = 0
     output_batch = 1
@@ -150,3 +191,5 @@ if __name__ == "__main__":
             file_entries = 0
 
         file_entries += parse_epitope_batch(epitope_batch, output_file, added_antigens)
+
+
