@@ -5,7 +5,7 @@ from os import mkdir, path
 
 from biotite.sequence.align import SubstitutionMatrix
 
-from data_processing.dataset import Dataset
+from model.dataset import Dataset
 
 FASTA_EXTENSIONS = ['.fasta', '.fna', '.ffn', '.faa', '.frn']
 DEFAULT_HOMOLOGOUS_THRESHOLD = 0.8
