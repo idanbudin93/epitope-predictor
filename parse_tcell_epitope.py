@@ -8,7 +8,7 @@ from Bio import Entrez, SeqIO
 SRC_PATH = '/home/userors/academics/epishop/tcell_full_v3.csv'
 DEST_PATH = '/home/userors/academics/epishop/parsed_epitopes/epitope_batch_{batch_number}'
 BATCH_FILE_SIZE = 5000  # soft limit
-BATCH_REQUEST_SIZE = 20
+BATCH_REQUEST_SIZE = 25
 
 EPITOPE_SECTION = (9, 24)
 EPITOPE_COLUMNS = {
@@ -45,23 +45,26 @@ def get_protein_id(protein_page):
         return id_match.group('pid')
 
 
-def iterate_epitopes_batched(path):
+def iterate_epitopes_batched(path, parsed_epitopes):
     epitope_batch = {}
     for line_num, line in read_csv(path):
         try:
             antigen_id = get_protein_id(line[EPITOPE_COLUMNS['antigen page']])
-            if antigen_id:
+            epitope_seq = line[EPITOPE_COLUMNS['sequence']].lower()
+
+            if antigen_id and epitope_batch.get(antigen_id, '') != epitope_seq and \
+                    not duplicate_epitope(parsed_epitopes, antigen_id, epitope_seq):
                 epitope_batch[antigen_id] = {
                     'start': int(line[EPITOPE_COLUMNS['start position']]) - 1,
                     'end': int(line[EPITOPE_COLUMNS['end position']]),
-                    'seq': line[EPITOPE_COLUMNS['sequence']].lower()
+                    'seq': epitope_seq.lower()
                 }
         except ValueError:
             print("couldn't parse epitope from line {0}".format(line_num))
         if len(epitope_batch) >= BATCH_REQUEST_SIZE:
             yield epitope_batch
             epitope_batch = {}
-    # return all remaining epitopes
+
     yield epitope_batch
 
 
@@ -92,10 +95,10 @@ def write_entry(file_handle, sequence, **kwargs):
     file_handle.write(str(sequence) + "\n\n")
 
 
-def duplicate_validation(validation_epitopes, epitope_batch, antigen_id):
+def duplicate_epitope(validation_epitopes, antigen_id, epitope_seq):
     if antigen_id in validation_epitopes:
-        return epitope_batch[antigen_id]['seq'] != validation_epitopes[antigen_id]
-    return True
+        return epitope_seq == validation_epitopes[antigen_id]
+    return False
 
 
 def epitope_sequence_validation(epitope_data, antigen_sequence):
@@ -107,14 +110,14 @@ def epitope_sequence_validation(epitope_data, antigen_sequence):
     return epitope_from_data == epitope_from_antigen
 
 
-def parse_epitope_batch(epitope_batch, output_file, existing_epitopes):
+def parse_epitope_batch(epitope_batch, output_file, parsed_epitopes):
     ncbi_results = ncbi_request(epitope_batch.keys())
     added_epitopes = 0
 
     for result in SeqIO.parse(ncbi_results, 'fasta'):
         res_id = get_fasta_id(result.id)
         try:
-            not_duplicate = duplicate_validation(existing_epitopes, epitope_batch, res_id)
+            not_duplicate = not duplicate_epitope(parsed_epitopes, res_id, epitope_batch[res_id]['seq'])
             sequence_ok = epitope_sequence_validation(epitope_batch[res_id], str(result.seq))
 
             if not_duplicate and sequence_ok:
@@ -123,7 +126,7 @@ def parse_epitope_batch(epitope_batch, output_file, existing_epitopes):
                 write_entry(output_file, highlighted_sequence,
                             id=res_id, name=result.name)
 
-                existing_epitopes[res_id] = epitope_batch[res_id]['seq']
+                parsed_epitopes[res_id] = epitope_batch[res_id]['seq']
                 added_epitopes += 1
             else:
                 print("{0}::{1} failed {2} validation".format(
@@ -131,22 +134,23 @@ def parse_epitope_batch(epitope_batch, output_file, existing_epitopes):
                     'sequence' if not_duplicate else 'duplicate'))
         except KeyError as e:
             print("--[[[{0} (edited to {1}) not in batch {2}".format(
-                result.id, res_id, epitope_batch.keys()))
+                result.id, res_id, list(epitope_batch.keys())))
 
     return added_epitopes
 
 
 if __name__ == "__main__":
     file_entries = 0
-    output_batch = 1
-    output_file = open(DEST_PATH.format(batch_number=output_batch), 'w+')
-    added_antigens = dict()
+    output_filenum = 1
+    output_file = open(DEST_PATH.format(batch_number=output_filenum), 'w+')
+    parsed_epitopes = dict()
 
-    for epitope_batch in iterate_epitopes_batched(SRC_PATH):
+    for epitope_batch in iterate_epitopes_batched(SRC_PATH, parsed_epitopes):
         if file_entries >= BATCH_FILE_SIZE:
+            print("Output file {0} full. Writing to new file.".format(output_filenum))
             output_file.close()
-            output_batch += 1
-            output_file = open(DEST_PATH.format(batch_number=output_batch), 'w+')
+            output_filenum += 1
+            output_file = open(DEST_PATH.format(batch_number=output_filenum), 'w+')
             file_entries = 0
 
-        file_entries += parse_epitope_batch(epitope_batch, output_file, added_antigens)
+        file_entries += parse_epitope_batch(epitope_batch, output_file, parsed_epitopes)

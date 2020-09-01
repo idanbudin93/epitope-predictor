@@ -1,1 +1,2 @@
 biotite==0.22.0
+biopython==1.77
