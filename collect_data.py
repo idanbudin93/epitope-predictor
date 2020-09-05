@@ -9,13 +9,16 @@ import urllib.request
 import shutil 
 import random
 
+
+URL_FOR_DOWNLOAD = "https://www.iedb.org/downloader.php?file_name=doc/tcell_full_v3.zip"
+OUT_PATH = "./samples"
+
 def download_data(out_path, url, force=False):
     
     """ downloads the data to the specified out_path """
     
-    samples_dir=pathlib.Path(out_path)
-    samples_dir.mkdir(exist_ok=True)
-    out_filename = str(samples_dir.joinpath("proteins.fasta"))
+    pathlib.Path(out_path).mkdir(exist_ok=True)
+    out_filename = os.path.join(out_path, "proteins.fasta")
     
     if os.path.isfile(out_filename) and not force:
         print(f'Proteins file {out_filename} exists, skipping download.')
@@ -29,3 +32,5 @@ def download_data(out_path, url, force=False):
     with zipfile.ZipFile(out_filename, 'r') as zip_ref:
         zip_ref.extractall(out_path)
     return out_filename
+
+download_data(out_path, url_for_download)
