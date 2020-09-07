@@ -6,8 +6,8 @@ import pathlib
 
 from Bio import Entrez, SeqIO
 
-SRC_PATH = 'tcell_full_v3.csv'
-BATCH_FILENAME = 'epitope_batch_{batch_number}'
+SRC_PATH = './samples/tcell_full_v3.csv'
+BATCH_FILENAME = 'parsed_epitopes/epitope_batch_{batch_number}'
 BATCH_FILE_SIZE = 5000  # soft limit
 BATCH_REQUEST_SIZE = 25
 
@@ -152,7 +152,7 @@ def make_samples(directory_path):
     output_file = open(str(dst_path.joinpath(BATCH_FILENAME.format(batch_number=output_filenum))), 'w+')
     parsed_epitopes = dict()
 
-    for epitope_batch in iterate_epitopes_batched(str(pathlib.Path(directory_path, SRC_PATH)), parsed_epitopes):
+    for epitope_batch in iterate_epitopes_batched(SRC_PATH, parsed_epitopes):
         if file_entries >= BATCH_FILE_SIZE:
             print("Output file {0} full. Writing to new file.".format(output_filenum))
             output_file.close()
@@ -161,8 +161,7 @@ def make_samples(directory_path):
             file_entries = 0
 
         file_entries += parse_epitope_batch(epitope_batch, output_file, parsed_epitopes)
-
-
+        
 def Clean_id_lines_from_samples(directory_path):
     """ 
     cleans the files that are holding proteins (in 'path_to_parse_samples'), 
@@ -171,12 +170,14 @@ def Clean_id_lines_from_samples(directory_path):
     """
 
     path_to_parsed_clean_samples = pathlib.Path(directory_path, PATH_TO_PARSED_CLEAN_SAMPLES)
-    path_to_parsed_clean_samples.mkdir(exist_ok=True) #opening a directory to hold ckean data, ready for char_maps
-    parsed_antigens = pathlib.Path(directory_path, PATH_TO_PARSED_SAMPLES)
+    path_to_parsed_clean_samples.mkdir(exist_ok=True) #opening a directory to hold clean data, ready for char_maps
+    path_to_parsed_antigens = "/".join((directory_path, PATH_TO_PARSED_SAMPLES))
+    parsed_antigens = pathlib.Path(path_to_parsed_antigens)
+
     for each_file in parsed_antigens.iterdir():
         cleaned_name = "".join((each_file.name, "_clean_text.text"))
-        cleaned_file = path_to_parsed_clean_samples.joinpath(cleaned_name).open('w+')
-        with open(str(parsed_antigens.joinpath(each_file.name)), 'r') as unclean_parsed_protein:
+        cleaned_file = open("/".join((str(path_to_parsed_clean_samples),cleaned_name)),'w+')
+        with open("/".join((path_to_parsed_antigens, each_file.name)), 'r') as unclean_parsed_protein:
             for line in unclean_parsed_protein.readlines():
                 if line[0] != '\n' and line[0] != '>':
                     cleaned_file.write(line)

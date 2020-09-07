@@ -134,55 +134,27 @@ def hot_softmax(y, dim=0, temperature=1.0):
     # ========================
     return result
 
+def get_probabilities(model, text, char_maps, T):
+  device = next(model.parameters()).device
+  char_to_idx, idx_to_char = char_maps
+  with torch.no_grad():
+    embedded_input = chars_to_onehot(text, char_to_idx)
+    y = model(embedded_input.to(
+        dtype=torch.float, device=device).unsqueeze(0))
+    # take the mean along all batches
+    y.squeeze_(dim=0)
+    distribution = hot_softmax(y, 1, T)
+    return distribution
 
-def generate_from_model(model, start_sequence, n_chars, char_maps, T):
-    """
-    Generates a sequence of chars based on a given model and a start sequence.
-    :param model: An RNN model. forward should accept (x,h0) and return (y,
-    h_s) where x is an embedded input sequence, h0 is an initial hidden state,
-    y is an embedded output sequence and h_s is the final hidden state.
-    :param start_sequence: The initial sequence to feed the model.
-    :param n_chars: The total number of chars to generate (including the
-    initial sequence).
-    :param char_maps: A tuple as returned by char_maps(text).
-    :param T: Temperature for sampling with softmax-based distribution.
-    :return: A string starting with the start_sequence and continuing for
-    with chars predicted by the model, with a total length of n_chars.
-    """
-    assert len(start_sequence) < n_chars
-    device = next(model.parameters()).device
-    char_to_idx, idx_to_char = char_maps
-    out_text = start_sequence
-
-    # TODO: Implement char-by-char text generation.
-    # 1. Feed the start_sequence into the model.
-    # 2. Sample a new char from the output distribution of the last output
-    #    char. Convert output to probabilities first.
-    #    See torch.multinomial() for the sampling part.
-    # 3. Feed the new char into the model.
-    # 4. Rinse and Repeat.
-    #
-    # Note that tracking tensor operations for gradient calculation is not
-    # necessary for this. Best to disable tracking for speed.
-    # See torch.no_grad().
-    # ====== YOUR CODE: ======
-    with torch.no_grad():
-        embedded_input = chars_to_onehot(start_sequence, char_to_idx)
-        h = None
-        for _ in range(n_chars - len(out_text)):
-            y, h = model(embedded_input.to(
-                dtype=torch.float, device=device).unsqueeze(0), h)
-            # take the mean along all batches
-            y.squeeze_(dim=0)
-            distibution = hot_softmax(y, 1, T)
-            next_char_idx = torch.multinomial(distibution, 1)
-            next_char_id = next_char_idx[-1].item()
-            next_char = idx_to_char[next_char_id]
-            out_text += next_char
-            embedded_input = chars_to_onehot(next_char, char_to_idx)
-    # ========================
-
-    return out_text
+def capitalize(text, distribution):
+  capitalization = torch.multinomial(distribution[:,[0,1]], 1)
+  result = ''
+  for i in range(len(text)):
+    if text[i] == '\n':
+      result += text[i]
+    else:
+      result += text[i].upper() if distribution[i, 1] > distribution[i, 0] else text[i]
+  return result
 
 class LSTMTagger(nn.Module):
 
