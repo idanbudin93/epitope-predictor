@@ -10,12 +10,13 @@ class Epitope:
         self.__verified_regions = self.__get_verified_regions()
 
     def __eq__(self, other):
-        return \
-            str(self.__record.seq).lower() == str(other.__record.seq).lower() \
-            and self.__verified_regions == other.__verified_regions
+        return str(self.__record.seq) == str(other.__record.seq)
 
     def __str__(self):
         return str(self.__record.seq)
+
+    def __hash__(self):
+        return str(self.__record.seq).__hash__()
 
     def __get_seq(self):
         return str(self.__record.seq)

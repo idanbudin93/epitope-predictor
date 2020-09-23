@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import List
+from typing import List, Iterator, Union
 
 from Bio import SeqIO
 
@@ -7,17 +7,23 @@ from models.Epitope import Epitope
 
 
 class EpitopesDataset:
-    def __init__(self, records_batches_fasta_paths: List[str]):
-        self.__epitopes = self.__parse_records_batches_fasta_files(records_batches_fasta_paths)
+    def __init__(self, records_input: [List[str], List[Epitope]]):
+        if all(isinstance(records_batch_fasta_path, str) for records_batch_fasta_path in records_input):
+            self.__epitopes = self.__parse_records_batches_fasta_files(records_input)
+        if all(isinstance(epitope, Epitope) for epitope in records_input):
+            self.__epitopes = records_input
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Epitope]:
         return self.__epitopes.__iter__()
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> Epitope:
         return self.__epitopes[index]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__epitopes)
+
+    def __eq__(self, other):
+        return set(self) == set(other)
 
     @staticmethod
     def __parse_records_batches_fasta_files(records_batches_fasta_paths: List[str]) -> List[Epitope]:

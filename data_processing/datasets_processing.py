@@ -1,9 +1,9 @@
-from os import path
 from typing import Tuple
 
-from docker import DockerClient
+from models.Epitope import Epitope
+from models.EpitopesDataset import EpitopesDataset
+from models.EpitopesClusters import EpitopesClusters
 
-from models import Epitope, EpitopesDataset
 
 
 def _are_verified_regions_adjacent(verified_region1: Tuple[int, int], verified_region2: Tuple[int, int]) -> bool:
@@ -63,3 +63,19 @@ def count_verified_regions_in_records_with_adjacent_verified_regions(epitopes_da
 
     return verified_regions_in_records_with_adjacent_verified_regions_count
 
+
+def get_epitopes_with_max_verified_regions(epitopes_clusters: EpitopesClusters) -> EpitopesDataset:
+    remaining_epitopes = []
+
+    for cluster in epitopes_clusters:
+        epitope_with_max_verified_regions = cluster[0]
+        max_verified_regions = len(cluster[0].verified_regions)
+
+        for epitope in cluster:
+            if len(epitope.verified_regions) > max_verified_regions:
+                epitope_with_max_verified_regions = epitope
+                max_verified_regions = len(epitope.verified_regions)
+
+        remaining_epitopes.append(epitope_with_max_verified_regions)
+
+    return EpitopesDataset(remaining_epitopes)

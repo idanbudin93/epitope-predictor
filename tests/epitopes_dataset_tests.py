@@ -11,7 +11,7 @@ from models.EpitopesDataset import EpitopesDataset
 EPITOPES_BATCH1_FNAME = 'epitopes_batch1.fasta'
 EPITOPES_BATCH2_FNAME = 'epitopes_batch2.fasta'
 EPITOPES_BATCH3_FNAME = 'epitopes_batch3.fasta'
-WRITE_DATASET_RES_FNAME = 'dataset_output.fasta'
+WRITE_DATASET_RES_FNAME = 'epitopes_dataset_written.fasta'
 RES_DIR_REL_PATH = 'res'
 OUTPUT_DIR_REL_PATH = 'output'
 
@@ -56,6 +56,48 @@ class TestInitEpitopesDataset(unittest.TestCase):
 
         self.assertEqual(expected_epitopes, list(actual_epitopes_dataset))
 
+
+class TestEquality(unittest.TestCase):
+    def test_equal(self):
+        epitopes_dataset1 = EpitopesDataset(
+            [
+                Epitope(SeqRecord(Seq('a'))),
+                Epitope(SeqRecord(Seq('A'))),
+                Epitope(SeqRecord(Seq('aa'))),
+                Epitope(SeqRecord(Seq('aa'))),
+            ]
+        )
+
+        epitopes_dataset2 = EpitopesDataset(
+            [
+                Epitope(SeqRecord(Seq('aa'))),
+                Epitope(SeqRecord(Seq('A'))),
+                Epitope(SeqRecord(Seq('a'))),
+            ]
+        )
+
+        self.assertEqual(epitopes_dataset1, epitopes_dataset2)
+
+    def test_unequal(self):
+        epitopes_dataset1 = EpitopesDataset(
+            [
+                Epitope(SeqRecord(Seq('a'))),
+                Epitope(SeqRecord(Seq('A'))),
+                Epitope(SeqRecord(Seq('aa'))),
+                Epitope(SeqRecord(Seq('aa'))),
+            ]
+        )
+
+        epitopes_dataset2 = EpitopesDataset(
+            [
+                Epitope(SeqRecord(Seq('a'))),
+                Epitope(SeqRecord(Seq('B'))),
+                Epitope(SeqRecord(Seq('aa'))),
+                Epitope(SeqRecord(Seq('aa'))),
+            ]
+        )
+
+        self.assertNotEqual(epitopes_dataset1, epitopes_dataset2)
 
 class TestMergeIdenticalSeqs(unittest.TestCase):
     def test_merge_identical_seqs(self):

@@ -9,8 +9,9 @@ from data_processing.clustering import cluster_records_by_identity
 from data_processing.datasets_processing import (
     count_verified_regions_in_records_with_adjacent_verified_regions,
     count_records_with_adjacent_verified_regions,
-    count_total_adjacent_verified_regions
+    count_total_adjacent_verified_regions, get_epitopes_with_max_verified_regions
 )
+from models.EpitopesClusters import EpitopesClusters
 from models.EpitopesDataset import EpitopesDataset
 
 # todo: move to config and args
@@ -64,14 +65,6 @@ def main():
     print('removing verified region subsets from records...')
     epitopes_dataset.remove_verified_regions_subsets()
     print(epitopes_dataset.count_verified_regions(), 'verified regions in dataset after removing subsets')
-    print(count_records_with_adjacent_verified_regions(epitopes_dataset),
-          'epitope records contain adjacent verified regions in dataset')
-    verified_regions_in_records_with_adjacent_verified_regions_count \
-        = count_verified_regions_in_records_with_adjacent_verified_regions(epitopes_dataset)
-    print(verified_regions_in_records_with_adjacent_verified_regions_count, 'verified regions in epitope records'
-          + ' that contain adjacent verified regions')
-    adjacent_verified_regions_count = count_total_adjacent_verified_regions(epitopes_dataset)
-    print(adjacent_verified_regions_count, 'adjacent verified regions in dataset')
 
     print('saving merged epitope records to:', MERGED_RECORDS_PATH)
     epitopes_dataset.write(MERGED_RECORDS_PATH)
@@ -85,6 +78,13 @@ def main():
         HOMOLOGS_CLUSTERING_WORD_SIZE
     )
     print(cd_hit_stdout_and_err)
+
+    print('parsing homologs clusters cd-hit output...')
+    homologs_clusters = EpitopesClusters(HOMOLOGS_CLUSTERS_PATH, MERGED_RECORDS_PATH)
+    print('getting epitope records with maximum verified regions from each homologs cluster...')
+    no_homologs_epitopes_dataset = get_epitopes_with_max_verified_regions(homologs_clusters)
+    print(len(no_homologs_epitopes_dataset), 'merged epitope records in dataset after removing homologs')
+    print(no_homologs_epitopes_dataset.count_verified_regions(), 'verified regions in dataset after removing homologs')
 
 
 if __name__ == '__main__':
