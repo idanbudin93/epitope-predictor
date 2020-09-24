@@ -72,7 +72,6 @@ def main():
     print('removing verified region subsets from records...')
     epitopes_dataset.remove_verified_regions_subsets()
     print(epitopes_dataset.count_verified_regions(), 'verified regions in dataset after removing subsets')
-
     merged_records_path = path.join(temp_output_dir, config['merged_records_fname'])
     print('saving merged epitope records to:', merged_records_path)
     epitopes_dataset.write(merged_records_path)
@@ -100,12 +99,11 @@ def main():
     no_homologs_epitopes_dataset = get_epitopes_with_max_verified_regions(homologs_clusters)
     print(len(no_homologs_epitopes_dataset), 'merged epitope records in dataset after removing homologs')
     print(no_homologs_epitopes_dataset.count_verified_regions(), 'verified regions in dataset after removing homologs')
-
     no_homologs_records_path = path.join(temp_output_dir, config['no_homologs_records_fname'])
     print('saving epitope records without homologs to:', no_homologs_records_path)
     no_homologs_epitopes_dataset.write(no_homologs_records_path)
 
-    print('clustering epitope records by identity for splitting to CV groups')
+    print('clustering epitope records by identity for splitting to CV groups...')
     cv_groups_clusters_path_without_extension = path.join(
         temp_output_dir,
         config['cv_groups_clusters_fname_without_extension'])
