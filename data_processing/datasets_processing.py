@@ -1,9 +1,9 @@
 import random
 from typing import Tuple, List
 
-from models.Epitope import Epitope
-from models.EpitopesClusters import EpitopesClusters
-from models.EpitopesDataset import EpitopesDataset
+from model.Epitope import Epitope
+from model.EpitopesClusters import EpitopesClusters
+from model.EpitopesDataset import EpitopesDataset
 
 
 def _are_verified_regions_adjacent(verified_region1: Tuple[int, int], verified_region2: Tuple[int, int]) -> bool:
