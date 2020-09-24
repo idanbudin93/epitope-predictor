@@ -3,7 +3,7 @@ from typing import List, Iterator, Union
 
 from Bio import SeqIO
 
-from models.Epitope import Epitope
+from model.Epitope import Epitope
 
 
 class EpitopesDataset:

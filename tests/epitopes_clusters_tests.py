@@ -3,8 +3,8 @@ from os import path
 
 from Bio.SeqRecord import SeqRecord
 
-from models.Epitope import Epitope
-from models.EpitopesClusters import EpitopesClusters
+from model.Epitope import Epitope
+from model.EpitopesClusters import EpitopesClusters
 
 EPITOPES_CLUSTERS_FNAME = 'epitopes_clusters1.clstr'
 EPITOPES_FASTA_FNAME = 'epitopes1.fasta'

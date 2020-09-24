@@ -4,7 +4,7 @@ from typing import List, Tuple
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from models.Epitope import Epitope
+from model.Epitope import Epitope
 
 
 def _add_verified_regions_lst(epitope: Epitope, verified_regions_lst: List[Tuple[int, int]]) -> Epitope:

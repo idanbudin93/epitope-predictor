@@ -2,7 +2,7 @@ from typing import List, Iterator
 
 from Bio import SeqIO
 
-from models.Epitope import Epitope
+from model.Epitope import Epitope
 
 CLUSTER_PREFIX = '>'
 EPITOPE_ID_PREFIX = '>'

@@ -5,8 +5,8 @@ from typing import List, Tuple
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from models.Epitope import Epitope
-from models.EpitopesDataset import EpitopesDataset
+from model.Epitope import Epitope
+from model.EpitopesDataset import EpitopesDataset
 
 EPITOPES_BATCH1_FNAME = 'epitopes_batch1.fasta'
 EPITOPES_BATCH2_FNAME = 'epitopes_batch2.fasta'

@@ -12,9 +12,9 @@ from data_processing.datasets_processing import (
     count_verified_regions_in_records_with_adjacent_verified_regions, get_epitopes_with_max_verified_regions,
     split_epitopes_clusters_to_cv_datasets
 )
-from models.Epitope import Epitope
-from models.EpitopesClusters import EpitopesClusters
-from models.EpitopesDataset import EpitopesDataset
+from model.Epitope import Epitope
+from model.EpitopesClusters import EpitopesClusters
+from model.EpitopesDataset import EpitopesDataset
 
 EPITOPES_BATCH1_FNAME = 'epitopes_batch1.fasta'
 EPITOPES_BATCH2_FNAME = 'epitopes_batch2.fasta'

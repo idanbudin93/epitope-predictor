@@ -10,8 +10,8 @@ from docker import DockerClient
 from data_processing.clustering import cluster_records_by_identity
 from data_processing.datasets_processing import get_epitopes_with_max_verified_regions, \
     split_epitopes_clusters_to_cv_datasets
-from models.EpitopesClusters import EpitopesClusters
-from models.EpitopesDataset import EpitopesDataset
+from model.EpitopesClusters import EpitopesClusters
+from model.EpitopesDataset import EpitopesDataset
 
 # todo: move to config and args
 DATA_DIR = path.abspath('data')
