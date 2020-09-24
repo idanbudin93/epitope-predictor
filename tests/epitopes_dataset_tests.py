@@ -8,23 +8,15 @@ from Bio.SeqRecord import SeqRecord
 from model.Epitope import Epitope
 from model.EpitopesDataset import EpitopesDataset
 
-EPITOPES_BATCH1_FNAME = 'epitopes_batch1.fasta'
-EPITOPES_BATCH2_FNAME = 'epitopes_batch2.fasta'
-EPITOPES_BATCH3_FNAME = 'epitopes_batch3.fasta'
-WRITE_DATASET_RES_FNAME = 'epitopes_dataset_written.fasta'
-RES_DIR_REL_PATH = 'res'
-OUTPUT_DIR_REL_PATH = 'output'
-
-RES_DIR_PATH = path.abspath(RES_DIR_REL_PATH)
-OUTPUT_DIR_PATH = path.abspath(OUTPUT_DIR_REL_PATH)
 
 EPITOPES_BATCHES_PATHS = \
     [
-        path.join(RES_DIR_PATH, epitope_batch_fname)
-        for epitope_batch_fname in [EPITOPES_BATCH1_FNAME, EPITOPES_BATCH2_FNAME, EPITOPES_BATCH3_FNAME]
+        path.abspath('res\\epitopes_batch1.fasta'),
+        path.abspath('res\\epitopes_batch2.fasta'),
+        path.abspath('res\\epitopes_batch3.fasta')
     ]
 
-WRITE_DATASET_RES_PATH = path.join(OUTPUT_DIR_PATH, WRITE_DATASET_RES_FNAME)
+WRITE_DATASET_RES_PATH = path.abspath('output\\epitopes_dataset_written.fasta')
 
 
 def add_verified_regions_lst(epitope: Epitope, verified_regions_lst: List[Tuple[int, int]]) -> Epitope:
@@ -98,6 +90,7 @@ class TestEquality(unittest.TestCase):
         )
 
         self.assertNotEqual(epitopes_dataset1, epitopes_dataset2)
+
 
 class TestMergeIdenticalSeqs(unittest.TestCase):
     def test_merge_identical_seqs(self):
