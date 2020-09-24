@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as functional
 from torch import Tensor
+
 def char_maps():
     """
     Create mapping from the unique chars in pretein sequences to integers and
@@ -75,19 +76,14 @@ def onehot_to_chars(embedded_text: Tensor, idx_to_char: dict) -> str:
     return result
 
 def get_tag(x):
-  return 2 if x == '\n' else 1 if x.isupper() else 0
-
-def from_tag(x, tag):
-  return '\n' if tag == 2 else x.upper() if tag == 1 else x.lower()
+  return 1 if x.isupper() else 0
   
+def from_tag(x, y):
+  return x.upper() if y == 1 else x.lower()
+
 def chars_to_labelled_samples(text: str, char_to_idx: dict, seq_len: int,
                               device='cpu'):
     """
-    Splits a char sequence into smaller sequences of labelled samples.
-    A sample here is a sequence of seq_len embedded chars.
-    Each sample has a corresponding label, which is also a sequence of
-    seq_len chars represented as indices. The label is constructed such that
-    the label of each char is 1 if it is uppercase and 0 otherwise.
     :param text: The char sequence to split.
     :param char_to_idx: The mapping to create and embedding with.
     :param seq_len: The sequence length of each sample and label.
@@ -104,7 +100,12 @@ def chars_to_labelled_samples(text: str, char_to_idx: dict, seq_len: int,
     # 3. Create the labels tensor in a similar way and convert to indices.
     # Note that no explicit loops are required to implement this function.
     # ====== YOUR CODE: ======
+    # 0. remove samples that do not contain epitopes
+    
+    # 1. Embed the given text.
     embedded_text = chars_to_onehot(text, char_to_idx)
+    # 2. Create the samples tensor by splitting to groups of seq_len.
+    #    Notice that the last char has no label, so don't use it.
     num_samples = len(embedded_text) // seq_len
     embedded_text = embedded_text[:num_samples*seq_len]
     samples = torch.reshape(
@@ -134,31 +135,42 @@ def hot_softmax(y, dim=0, temperature=1.0):
     # ========================
     return result
 
-def get_probabilities(model, text, char_maps, T):
+
+def get_probabilities(model, protein_seq, char_maps, T):
+  """
+  get the probability for each amino acid to be part of an epitope
+  :param model: the LSTM model 
+  :param protein_seq: a protein sequence that should by classified
+  :param char_maps: function that indices all letters (=amino acids)
+  :param model: 
+  """
   device = next(model.parameters()).device
-  char_to_idx, idx_to_char = char_maps
-  with torch.no_grad():
-    embedded_input = chars_to_onehot(text, char_to_idx)
-    y = model(embedded_input.to(
+  char_to_idx, idx_to_char = char_maps 
+
+  with torch.no_grad(): #meaning: don't train now
+    embedded_input = chars_to_onehot(protein_seq, char_to_idx)
+    y, _ = model(embedded_input.to(
         dtype=torch.float, device=device).unsqueeze(0))
     # take the mean along all batches
     y.squeeze_(dim=0)
-    distribution = hot_softmax(y, 1, T)
+    distribution = hot_softmax(y, 1, T) 
     return distribution
 
+
+def capitalize_by_labels(text, labels):
+  return ''.join(list(map(lambda x,y: from_tag(x,y), text, labels)))
+
+
 def capitalize(text, distribution):
-  capitalization = torch.multinomial(distribution[:,[0,1]], 1)
-  result = ''
-  for i in range(len(text)):
-    if text[i] == '\n':
-      result += text[i]
-    else:
-      result += text[i].upper() if distribution[i, 1] > distribution[i, 0] else text[i]
-  return result
+  """
+  hh
+  """
+  maxind = torch.max(distribution, 1)
+  return capitalize_by_labels(text, maxind.indices)
 
 class LSTMTagger(nn.Module):
 
-    def __init__(self, hidden_dim, n_layers, input_dim, tagset_size):
+    def __init__(self, hidden_dim, n_layers, input_dim, tagset_size, drop_prob, bidirectional, device):
         """
         input_size – The number of expected features in the input x (at each timestep)
         hidden_size – The number of features in the hidden state h
@@ -168,7 +180,6 @@ class LSTMTagger(nn.Module):
         dropout – If non-zero, introduces a Dropout layer on the outputs of each LSTM layer except the last layer, with dropout probability equal to dropout. Default: 0
         bidirectional – If True, becomes a bidirectional LSTM. Default: False
 
-
         :param hidden_dim
         :param n_layers
         :param input_dim
@@ -177,13 +188,27 @@ class LSTMTagger(nn.Module):
         super(LSTMTagger, self).__init__()
         # The LSTM takes one-hot embeddings as inputs, and outputs hidden states
         # with dimensionality hidden_dim.
-        self.lstm = nn.LSTM(input_dim, hidden_dim, n_layers)
+        if bidirectional:
+          self.multiply_bi = 2
+        else:
+          self.multiply_bi = 1 
+
+        self.hidden_dim = hidden_dim
+        self.num_layers = n_layers
+        self.device = device
+        self.lstm = nn.LSTM(input_dim, hidden_dim, n_layers, batch_first=True, dropout=drop_prob, bidirectional=bidirectional)
 
         # The linear layer that maps from hidden state space to tag space
-        self.hidden2tag = nn.Linear(hidden_dim, tagset_size)
+        self.hidden2tag = nn.Linear(hidden_dim*self.multiply_bi, tagset_size)
 
-    def forward(self, input_batch: Tensor):
-        lstm_out, _ = self.lstm(input_batch)
+    def forward(self, input_batch: Tensor, states: Tensor = None):
+        #h0 = torch.zeros(self.num_layers*self.multiply_bi, x.size(0), self.hidden_dim).to(self.device)
+        #c0 = torch.zeros(self.num_layers*self.multiply_bi, x.size(0), self.hidden_dim).to(self.device)
+        #out, (hn, cn) = self.LSTM = (x, (h0,c0))
+        #out = self.hidden2tag(out[:, -1, :])
+        #out = functional.log_softmax(tag_space, dim=1)
+
+        #return out, (hn, cn)
+        lstm_out, (hn, cn) = self.lstm(input_batch, states)
         tag_space = self.hidden2tag(lstm_out)
-        tag_scores = functional.log_softmax(tag_space, dim=1)
-        return tag_scores
+        return tag_space, (hn, cn)

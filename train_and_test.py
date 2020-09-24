@@ -10,7 +10,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from typing import Callable, Any
 from pathlib import Path
-from helpers.train_results import BatchResult, EpochResult, FitResult
+from project.training_helpers import BatchResult, EpochResult, FitResult
 
 #======================Train=============================
 
@@ -240,12 +240,29 @@ class LSTMTrainer(Trainer):
         self.h = None
         # ========================
         return super().test_epoch(dl_test, **kw)
+    
+    def calc_accuracy(self, predicted, y):
+        max_obj = torch.max(predicted, 1)
+        y_vec = y.view(-1)
+        max_obj_vec = max_obj.indices.view(-1)
+        class_1_idx = torch.where(y_vec == 1)[0]
+        class_0_idx = torch.where(y_vec == 0)[0]
+        if len(class_1_idx) == 0:  
+          cur_accuracy = torch.true_divide(torch.eq(max_obj.indices, y).int().sum(), len(class_0_idx))
+        elif len(class_0_idx) == 0:
+          cur_accuracy = torch.true_divide(torch.eq(max_obj.indices, y).int().sum(), len(class_1_idx))
+        else:
+          a = torch.true_divide(torch.eq(max_obj_vec[class_1_idx], y_vec[class_1_idx]).int().sum(), 2.0 * len(class_1_idx))    
+          b = torch.true_divide(torch.eq(max_obj_vec[class_0_idx], y_vec[class_0_idx]).int().sum(), 2.0 * len(class_0_idx))
+          cur_accuracy = a + b
+        return cur_accuracy
 
     def train_batch(self, batch) -> BatchResult:
         x, y = batch
         x = x.to(self.device, dtype=torch.float)  # (B,S,V)
         y = y.to(self.device, dtype=torch.long)  # (B,S)
         seq_len = y.shape[1]
+        batch_size = y.shape[0]
 
         # Train the LSTM model on one batch of data.
         # - Forward pass
@@ -254,31 +271,40 @@ class LSTMTrainer(Trainer):
         # - Update params
         # - Calculate number of correct char predictions
         
+        # - Forward pass
         predicted, h = self.model(x, self.h)
-        self.h = torch.autograd.Variable(h)
+        self.h = (torch.autograd.Variable(h[0]),torch.autograd.Variable(h[1]))
         predicted = predicted.permute(0, 2, 1)
-        loss = self.loss_fn(predicted, y)
 
+        # - Calculate total loss over sequence
+        loss = self.loss_fn(predicted, y)
         self.optimizer.zero_grad()
+
+        # - Backward pass (BPTT)
         loss.backward()
+        #torch.nn.utils.clip_grad_norm(self.model.parameters(), max_norm=1)
+
+        # - Update params
         self.optimizer.step()
 
-        max_obj = torch.max(predicted, 1)
-        num_correct = torch.eq(max_obj.indices, y).int().sum()
-        self.h.detach()
+        # - Calculate number of correct char predictions
+        cur_accuracy = self.calc_accuracy(predicted, y)
+        self.h[0].detach()
+        self.h[1].detach()
         # ========================
 
         # Note: scaling num_correct by seq_len because each sample has seq_len
         # different predictions.
-        return BatchResult(loss.item(), num_correct.item() / seq_len)
+        return BatchResult(loss.item(), cur_accuracy.item() * batch_size)
 
     def test_batch(self, batch) -> BatchResult:
         x, y = batch
         x = x.to(self.device, dtype=torch.float)  # (B,S,V)
         y = y.to(self.device, dtype=torch.long)  # (B,S)
         seq_len = y.shape[1]
+        batch_size = y.shape[0]
 
-        with torch.no_grad():
+        with torch.no_grad():#it is test, not training
             # TODO: Evaluate the RNN model on one batch of data.
             # - Forward pass
             # - Loss calculation
@@ -287,11 +313,11 @@ class LSTMTrainer(Trainer):
             predicted, self.h = self.model(x, self.h)
             predicted = predicted.permute(0, 2, 1)
             loss = self.loss_fn(predicted, y)
-            max_obj = torch.max(predicted, 1)
-            num_correct = torch.eq(max_obj.indices, y).int().sum()
+            # - Calculate number of correct char predictions
+            cur_accuracy = self.calc_accuracy(predicted, y)
             # ========================
 
-        return BatchResult(loss.item(), num_correct.item() / seq_len)
+        return BatchResult(loss.item(), cur_accuracy.item() * batch_size)
 
 
     #======================Test===========================
