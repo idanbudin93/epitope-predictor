@@ -91,6 +91,7 @@ class TestEquality(unittest.TestCase):
 
         self.assertNotEqual(epitopes_dataset1, epitopes_dataset2)
 
+
 class TestMergeIdenticalSeqs(unittest.TestCase):
     def test_merge_identical_seqs(self):
         expected_epitopes = \
