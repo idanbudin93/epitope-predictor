@@ -17,7 +17,7 @@ class EpitopesClusters:
         return self.__epitopes_clusters_lst[index]
 
     def __iter__(self) -> Iterator[List[Epitope]]:
-        return  self.__epitopes_clusters_lst.__iter__()
+        return self.__epitopes_clusters_lst.__iter__()
 
     def __len__(self) -> int:
         return len(self.__epitopes_clusters_lst)
@@ -52,3 +52,6 @@ class EpitopesClusters:
                 epitopes_clusters_lst.append(curr_cluster)
 
         return epitopes_clusters_lst
+
+    def get_num_of_epitopes(self):
+        return sum((len(cluster) for cluster in self.__epitopes_clusters_lst))
