@@ -16,28 +16,18 @@ from model.Epitope import Epitope
 from model.EpitopesClusters import EpitopesClusters
 from model.EpitopesDataset import EpitopesDataset
 
-EPITOPES_BATCH1_FNAME = 'epitopes_batch1.fasta'
-EPITOPES_BATCH2_FNAME = 'epitopes_batch2.fasta'
-EPITOPES_BATCH3_FNAME = 'epitopes_batch3.fasta'
-EPITOPES_CLUSTERS1_FNAME = 'epitopes_clusters1.clstr'
-EPITOPES_FASTA1_FNAME = 'epitopes1.fasta'
-EPITOPES_CLUSTERS2_FNAME = 'epitopes_clusters2.clstr'
-EPITOPES_FASTA2_FNAME = 'epitopes2.fasta'
-
-RES_DIR_REL_PATH = 'res'
-
-RES_DIR_PATH = path.abspath(RES_DIR_REL_PATH)
 
 EPITOPES_BATCHES_PATHS = \
     [
-        path.join(RES_DIR_PATH, epitope_batch_fname)
-        for epitope_batch_fname in [EPITOPES_BATCH1_FNAME, EPITOPES_BATCH2_FNAME, EPITOPES_BATCH3_FNAME]
+        path.abspath('res\\epitopes_batch1.fasta'),
+        path.abspath('res\\epitopes_batch2.fasta'),
+        path.abspath('res\\epitopes_batch3.fasta')
     ]
 
-EPITOPES_CLUSTERS1_PATH = path.join(RES_DIR_PATH, EPITOPES_CLUSTERS1_FNAME)
-EPITOPES_FASTA1_PATH = path.join(RES_DIR_PATH, EPITOPES_FASTA1_FNAME)
-EPITOPES_CLUSTERS2_PATH = path.join(RES_DIR_PATH, EPITOPES_CLUSTERS2_FNAME)
-EPITOPES_FASTA2_PATH = path.join(RES_DIR_PATH, EPITOPES_FASTA2_FNAME)
+EPITOPES_CLUSTERS1_PATH = path.abspath('res\\epitopes_clusters1.clstr')
+EPITOPES_CLUSTERS2_PATH = path.abspath('res\\epitopes_clusters2.clstr')
+EPITOPES_FASTA1_PATH = path.abspath('res\\epitopes1.fasta')
+EPITOPES_FASTA2_PATH = path.abspath('res\\epitopes2.fasta')
 
 
 def _add_verified_regions_lst(epitope: Epitope, verified_regions_lst: List[Tuple[int, int]]) -> Epitope:

@@ -6,15 +6,9 @@ from Bio.SeqRecord import SeqRecord
 from model.Epitope import Epitope
 from model.EpitopesClusters import EpitopesClusters
 
-EPITOPES_CLUSTERS_FNAME = 'epitopes_clusters1.clstr'
-EPITOPES_FASTA_FNAME = 'epitopes1.fasta'
 
-RES_DIR_REL_PATH = 'res'
-
-RES_DIR_PATH = path.abspath(RES_DIR_REL_PATH)
-
-EPITOPES_CLUSTERS_PATH = path.join(RES_DIR_PATH, EPITOPES_CLUSTERS_FNAME)
-EPITOPES_FASTA_PATH = path.join(RES_DIR_PATH, EPITOPES_FASTA_FNAME)
+EPITOPES_CLUSTERS_PATH = path.abspath('res\\epitopes_clusters1.clstr')
+EPITOPES_FASTA_PATH = path.abspath('res\\epitopes1.fasta')
 
 
 class TestInit(unittest.TestCase):
