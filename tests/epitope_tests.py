@@ -95,33 +95,5 @@ class TestAddVerifiedRegion(unittest.TestCase):
         self.assertEqual(expected_record_seq, actual_record_seq)
 
 
-class TestRemoveVerifiedRegionSubsets(unittest.TestCase):
-    def test_remove_verified_regions_subsets1(self):
-        seq_example = 'AAaa'
-        verified_regions_to_add_example = [(0, 1), (0, 0), (1, 1), (1, 2)]
-
-        expected_verified_regions = [(0, 1), (1, 2)]
-
-        epitope = Epitope(SeqRecord(Seq(seq_example)))
-        _add_verified_regions_lst(epitope, verified_regions_to_add_example)
-        epitope.remove_verified_regions_subsets()
-        actual_verified_regions = epitope.verified_regions
-
-        self.assertEqual(expected_verified_regions, actual_verified_regions)
-
-    def test_remove_verified_regions_subsets2(self):
-        seq_example = 'aAAa'
-        verified_regions_to_add_example = [(1, 1), (0, 0), (0, 1), (0, 0)]
-
-        expected_verified_regions = [(1, 2), (0, 1)]
-
-        epitope = Epitope(SeqRecord(Seq(seq_example)))
-        _add_verified_regions_lst(epitope, verified_regions_to_add_example)
-        epitope.remove_verified_regions_subsets()
-        actual_verified_regions = epitope.verified_regions
-
-        self.assertEqual(expected_verified_regions, actual_verified_regions)
-
-
 if __name__ == '__main__':
     unittest.main()

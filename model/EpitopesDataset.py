@@ -7,11 +7,19 @@ from model.Epitope import Epitope
 
 
 class EpitopesDataset:
-    def __init__(self, records_input: [List[str], List[Epitope]]):
-        if all(isinstance(records_batch_fasta_path, str) for records_batch_fasta_path in records_input):
-            self.__epitopes = self.__parse_records_batches_fasta_files(records_input)
+    """
+    Epitope records dataset
+
+    Parameters
+    ----------
+    records_input: Union[List[str], List[model.Epitope.Epitope]]
+        List of epitope batch files in fasta format, or list of Epitope objects
+    """
+    def __init__(self, records_input: Union[List[str], List[Epitope]]):
         if all(isinstance(epitope, Epitope) for epitope in records_input):
             self.__epitopes = records_input
+        if all(isinstance(records_batch_fasta_path, str) for records_batch_fasta_path in records_input):
+            self.__epitopes = self.__parse_records_batches_fasta_files(records_input)
 
     def __iter__(self) -> Iterator[Epitope]:
         return self.__epitopes.__iter__()
@@ -36,6 +44,9 @@ class EpitopesDataset:
         return raw_records
 
     def merge_identical_seqs(self):
+        """
+        Merging epitope records with same sequence while keeping the verified regions of all
+        """
         merged_epitopes_dict = OrderedDict()
 
         for epitope in self.__epitopes:
@@ -50,6 +61,14 @@ class EpitopesDataset:
         self.__epitopes = list(merged_epitopes_dict.values())
 
     def count_verified_regions(self) -> int:
+        """
+        Counts the total verified regions of all the epitope records in the dataset
+
+        Returns
+        -------
+        verified_regions_count : int
+        The total verified regions of all the epitope records in the dataset
+        """
         verified_regions_count = 0
 
         for epitope in self.__epitopes:
@@ -57,11 +76,14 @@ class EpitopesDataset:
 
         return verified_regions_count
 
-    def remove_verified_regions_subsets(self):
-        for epitope in self.__epitopes:
-            epitope.remove_verified_regions_subsets()
-
-    def write(self, output_path):
+    def write(self, output_path: str):
+        """
+        Saving the dataset in fasta format in the given path
+        Parameters
+        ----------
+        output_path : str
+            Path for saving the dataset
+        """
         with open(output_path, 'w') as output_file:
             fasta_out = SeqIO.FastaIO.FastaWriter(output_file, wrap=None)
             seq_records = [epitope.record for epitope in self.__epitopes]

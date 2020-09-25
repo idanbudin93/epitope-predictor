@@ -1,17 +1,12 @@
 import random
 import unittest
 from os import path
-from typing import List, Tuple
 
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from data_processing.datasets_processing import (
-    count_records_with_adjacent_verified_regions,
-    count_total_adjacent_verified_regions,
-    count_verified_regions_in_records_with_adjacent_verified_regions, get_epitopes_with_max_verified_regions,
-    split_epitopes_clusters_to_cv_datasets
-)
+from preprocess.datasets_processing import get_epitopes_with_max_verified_regions,split_epitopes_clusters_to_cv_datasets
+
 from model.Epitope import Epitope
 from model.EpitopesClusters import EpitopesClusters
 from model.EpitopesDataset import EpitopesDataset
@@ -28,54 +23,6 @@ EPITOPES_CLUSTERS1_PATH = path.abspath('res\\epitopes_clusters1.clstr')
 EPITOPES_CLUSTERS2_PATH = path.abspath('res\\epitopes_clusters2.clstr')
 EPITOPES_FASTA1_PATH = path.abspath('res\\epitopes1.fasta')
 EPITOPES_FASTA2_PATH = path.abspath('res\\epitopes2.fasta')
-
-
-def _add_verified_regions_lst(epitope: Epitope, verified_regions_lst: List[Tuple[int, int]]) -> Epitope:
-    for verified_region in verified_regions_lst:
-        epitope.add_verified_region(verified_region)
-
-    return epitope
-
-
-class TestCountRecordsWithAdjacentVerifiedRegions(unittest.TestCase):
-    def test_count_records_with_adjacent_verified_regions(self):
-        expected_records_with_adjacent_verified_regions_count = 4
-
-        epitopes_dataset = EpitopesDataset(EPITOPES_BATCHES_PATHS)
-        epitopes_dataset.merge_identical_seqs()
-        actual_records_with_adjacent_verified_regions_count = \
-            count_records_with_adjacent_verified_regions(epitopes_dataset)
-
-        self.assertEqual(expected_records_with_adjacent_verified_regions_count,
-                         actual_records_with_adjacent_verified_regions_count)
-
-
-class TestCountTotalAdjacentVerifiedRegions(unittest.TestCase):
-    def test_count_total_adjacent_verified_regions(self):
-        expected_total_adjacent_verified_regions_count = 9
-
-        epitopes_dataset = EpitopesDataset(EPITOPES_BATCHES_PATHS)
-        epitopes_dataset.merge_identical_seqs()
-        epitopes_dataset.remove_verified_regions_subsets()
-        actual_total_adjacent_verified_regions_count = \
-            count_total_adjacent_verified_regions(epitopes_dataset)
-
-        self.assertEqual(expected_total_adjacent_verified_regions_count,
-                         actual_total_adjacent_verified_regions_count)
-
-
-class TestCountVerifiedRegionsInRecordsWithAdjacentVerifiedRegions(unittest.TestCase):
-    def test_count_verified_regions_in_records_with_adjacent_verified_regions(self):
-        expected_verified_regions_in_records_with_adjacent_verified_regions_count = 9
-
-        epitopes_dataset = EpitopesDataset(EPITOPES_BATCHES_PATHS)
-        epitopes_dataset.merge_identical_seqs()
-        epitopes_dataset.remove_verified_regions_subsets()
-        actual_verified_regions_in_records_with_adjacent_verified_regions_count = \
-            count_verified_regions_in_records_with_adjacent_verified_regions(epitopes_dataset)
-
-        self.assertEqual(expected_verified_regions_in_records_with_adjacent_verified_regions_count,
-                         actual_verified_regions_in_records_with_adjacent_verified_regions_count)
 
 
 class TestGetEpitopesWithMaxVerifiedRegions(unittest.TestCase):

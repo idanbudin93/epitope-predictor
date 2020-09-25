@@ -120,36 +120,6 @@ class TestCountVerifiedRegions(unittest.TestCase):
         self.assertEqual(expected_verified_regions_count, actual_verified_regions_count)
 
 
-class TestRemoveVerifiedRegionSubsets(unittest.TestCase):
-    def test_remove_verified_regions_subsets(self):
-        expected_epitopes_verified_regions_lst = \
-            [
-                ('aAAA', [(2, 3), (1, 2)]),
-                ('B', [(0, 0)]),
-                ('bBBBB', [(1, 2), (3, 4), (2, 3)]),
-                ('ccCCC', [(3, 4), (2, 3)]),
-                ('DD', [(0, 0), (1, 1)])
-            ]
-
-        expected_epitopes_dataset_len = len(expected_epitopes_verified_regions_lst)
-
-        epitopes_dataset = EpitopesDataset(EPITOPES_BATCHES_PATHS)
-        epitopes_dataset.merge_identical_seqs()
-        epitopes_dataset.remove_verified_regions_subsets()
-        actual_epitopes_dataset_len = len(epitopes_dataset)
-
-        self.assertEqual(expected_epitopes_dataset_len, actual_epitopes_dataset_len)
-        for i in range(len(expected_epitopes_verified_regions_lst)):
-            expected_epitope_seq = expected_epitopes_verified_regions_lst[i][0]
-            expected_epitopes_verified_regions = expected_epitopes_verified_regions_lst[i][1]
-
-            actual_epitope_seq = str(epitopes_dataset[i])
-            actual_epitopes_verified_regions = epitopes_dataset[i].verified_regions
-
-            self.assertEqual(expected_epitope_seq, actual_epitope_seq)
-            self.assertEqual(expected_epitopes_verified_regions, actual_epitopes_verified_regions)
-
-
 class TestWrite(unittest.TestCase):
     def test_write1(self):
         expected_output_file_text = \
