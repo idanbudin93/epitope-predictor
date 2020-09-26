@@ -9,7 +9,7 @@ from docker import DockerClient
 from preprocess.Preprocessor import Processor
 
 
-def get_args() -> argparse.Namespace:
+def get_args(raw_args=None) -> argparse.Namespace:
     """
     Processing the command arguments
 
@@ -26,7 +26,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument('-s', '--use_rand_seed', action='store_true',
                         help='Flag for using constant random seed (defined in config file)')
 
-    return parser.parse_args()
+    return parser.parse_args(raw_args)
 
 
 def get_config(config_path: str) -> dict:
@@ -71,8 +71,8 @@ def get_cd_hit_docker_img(docker_client: DockerClient, cd_hit_docker_name: str) 
     return cd_hit_img_id
 
 
-def main():
-    args = get_args()
+def main(raw_args=None):
+    args = get_args(raw_args)
     config = get_config(args.config)
 
     if args.use_rand_seed:

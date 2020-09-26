@@ -10,7 +10,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from typing import Callable, Any
 from pathlib import Path
-from project.training_helpers import BatchResult, EpochResult, FitResult
+from training_helpers import BatchResult, EpochResult, FitResult
 
 #======================Train=============================
 
@@ -103,7 +103,7 @@ class Trainer(abc.ABC):
                 best_acc = test_acc[-1]
 
             if epoch >= 1:
-                if test_acc[-1] - test_acc[-2] < 5e-2:
+                if best_acc - test_acc[-1] < 0.1:
                     epochs_without_improvement += 1
                 else:
                     epochs_without_improvement = 0

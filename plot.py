@@ -3,7 +3,7 @@ import itertools
 
 import numpy as np
 import matplotlib.pyplot as plt
-from .training_helpers import FitResult
+from training_helpers import FitResult
 
 
 def tensors_as_images(tensors, nrows=1, figsize=(8, 8), titles=[],

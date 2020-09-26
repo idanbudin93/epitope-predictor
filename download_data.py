@@ -8,24 +8,31 @@ import urllib
 import urllib.request
 import shutil 
 import random
-
-def download_data(out_path, url, force=False):
+import zipfile
+TEMP_FILENAME = "tmp.zip"
+def download_data(out_path, csv_filename, url, force=False):
     
     """ downloads the data to the specified out_path """
+    dir_path = pathlib.Path(out_path)
+    dir_path.mkdir(exist_ok=True)
+    tmp_path = dir_path.joinpath(TEMP_FILENAME)
+    csv_path = dir_path.joinpath(csv_filename)
     
-    samples_dir=pathlib.Path(out_path)
-    samples_dir.mkdir(exist_ok=True)
-    out_filename = str(samples_dir.joinpath("proteins.fasta"))
-    
-    if os.path.isfile(out_filename) and not force:
-        print(f'Proteins file {out_filename} exists, skipping download.')
+    if csv_path.is_file() and not force:
+        print(f'csv file {str(csv_path)} exists, skipping download.')
     else:
-        print(f'Downloading {url}...')
-        with urllib.request.urlopen(url) as response, open(out_filename, 'wb') as out_file:
-            shutil.copyfileobj(response, out_file)
-        print(f'Saved to {out_filename}.')
+        if tmp_path.is_file() and not force:
+            print(f'zip file {str(tmp_path)} exists, skipping download.')  
+        else:
+            print(f'Downloading {url}...')
+            with urllib.request.urlopen(url) as response, open(str(tmp_path), 'wb') as out_file:
+                shutil.copyfileobj(response, out_file)
+            print(f'Saved to {str(tmp_path)}.')
+        print(f'Extracting zip {str(tmp_path)}.')
+        with zipfile.ZipFile(str(tmp_path), 'r') as zip_ref:        
+            zipinfo = zip_ref.infolist()[0]
+            zipinfo.filename = str(csv_path)
+            zip_ref.extract(zipinfo)
+        tmp_path.unlink()
 
-    import zipfile
-    with zipfile.ZipFile(out_filename, 'r') as zip_ref:
-        zip_ref.extractall(out_path)
-    return out_filename
+    return csv_filename

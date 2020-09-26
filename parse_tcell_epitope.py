@@ -5,12 +5,7 @@ import xml.etree.ElementTree as et
 import pathlib
 
 from Bio import Entrez, SeqIO
-
-SRC_PATH = './samples/tcell_full_v3.csv'
-BATCH_FILENAME = 'parsed_epitopes/epitope_batch_{batch_number}'
-BATCH_FILE_SIZE = 5000  # soft limit
-BATCH_REQUEST_SIZE = 25
-
+DEBUG = False
 EPITOPE_SECTION = (9, 24)
 EPITOPE_COLUMNS = {
     'epitope page': 0,
@@ -31,7 +26,7 @@ Entrez.tool = 'epitope_parser'
 
 def read_csv(file_path):
     line_number = 0
-    with open(file_path) as csv_file:
+    with open(file_path, encoding="utf8") as csv_file:
         csv_reader = csv.reader(csv_file)
 
         for line in csv_reader:
@@ -46,7 +41,7 @@ def get_protein_id(protein_page):
         return id_match.group('pid')
 
 
-def iterate_epitopes_batched(path, parsed_epitopes):
+def iterate_epitopes_batched(path, parsed_epitopes, batch_request_size):
     epitope_batch = {}
     for line_num, line in read_csv(path):
         try:
@@ -62,7 +57,7 @@ def iterate_epitopes_batched(path, parsed_epitopes):
                 }
         except ValueError:
             print("couldn't parse epitope from line {0}".format(line_num))
-        if len(epitope_batch) >= BATCH_REQUEST_SIZE:
+        if len(epitope_batch) >= batch_request_size:
             yield epitope_batch
             epitope_batch = {}
 
@@ -77,8 +72,8 @@ def ncbi_request(id_list):
 
 def highlight_epitope(antigen_sequence, epitope):
     return antigen_sequence[:epitope['start']].lower() + \
-            antigen_sequence[epitope['start']: epitope['end']].upper() + \
-            antigen_sequence[epitope['end']:].lower()
+        antigen_sequence[epitope['start']: epitope['end']].upper() + \
+        antigen_sequence[epitope['end']:].lower()
 
 
 def get_fasta_id(long_id):
@@ -103,7 +98,8 @@ def duplicate_epitope(validation_epitopes, antigen_id, epitope_seq):
 
 
 def epitope_sequence_validation(epitope_data, antigen_sequence):
-    epitope_from_antigen = antigen_sequence[epitope_data['start']:epitope_data['end']].lower()
+    epitope_from_antigen = antigen_sequence[epitope_data['start']:epitope_data['end']].lower(
+    )
     epitope_from_data = re.search(r'^[a-z]+', epitope_data['seq'])
 
     if epitope_from_data:
@@ -118,8 +114,10 @@ def parse_epitope_batch(epitope_batch, output_file, parsed_epitopes):
     for result in SeqIO.parse(ncbi_results, 'fasta'):
         res_id = get_fasta_id(result.id)
         try:
-            not_duplicate = not duplicate_epitope(parsed_epitopes, res_id, epitope_batch[res_id]['seq'])
-            sequence_ok = epitope_sequence_validation(epitope_batch[res_id], str(result.seq))
+            not_duplicate = not duplicate_epitope(
+                parsed_epitopes, res_id, epitope_batch[res_id]['seq'])
+            sequence_ok = epitope_sequence_validation(
+                epitope_batch[res_id], str(result.seq))
 
             if not_duplicate and sequence_ok:
                 highlighted_sequence = highlight_epitope(
@@ -130,73 +128,65 @@ def parse_epitope_batch(epitope_batch, output_file, parsed_epitopes):
                 parsed_epitopes[res_id] = epitope_batch[res_id]['seq']
                 added_epitopes += 1
             else:
-                print("{0}::{1} failed {2} validation".format(
-                    res_id, epitope_batch[res_id]['seq'],
-                    'sequence' if not_duplicate else 'duplicate'))
+                if DEBUG:
+                    print("{0}::{1} failed {2} validation".format(
+                        res_id, epitope_batch[res_id]['seq'], 'sequence' if not_duplicate else 'duplicate'))
         except KeyError as e:
-            print("--[[[{0} (edited to {1}) not in batch {2}".format(
-                result.id, res_id, list(epitope_batch.keys())))
+            if DEBUG:
+                print("--[[[{0} (edited to {1}) not in batch {2}".format(
+                    result.id, res_id, list(epitope_batch.keys())))
 
     return added_epitopes
 
 
-#====================Smadar=====================
-PATH_TO_PARSED_SAMPLES = 'parsed_epitopes'
-PATH_TO_PARSED_CLEAN_SAMPLES = 'parsed_clean_epitopes'
-
-def make_samples(directory_path):
-    dst_path = pathlib.Path(directory_path, PATH_TO_PARSED_SAMPLES)
+# ====================Smadar=====================
+def make_samples(directory_path, source_path, parsed_samples_folder_name, batch_filename, batch_file_size, batch_request_size):
+    dst_path = pathlib.Path(directory_path, parsed_samples_folder_name)
+    src_path = pathlib.Path(directory_path, source_path)
     dst_path.mkdir(exist_ok=True)
     file_entries = 0
     output_filenum = 1
-    output_file = open(str(dst_path.joinpath(BATCH_FILENAME.format(batch_number=output_filenum))), 'w+')
+    output_file = open(str(dst_path.joinpath(
+        batch_filename.format(batch_number=output_filenum))), 'w+')
     parsed_epitopes = dict()
 
-    for epitope_batch in iterate_epitopes_batched(SRC_PATH, parsed_epitopes):
-        if file_entries >= BATCH_FILE_SIZE:
-            print("Output file {0} full. Writing to new file.".format(output_filenum))
+    for epitope_batch in iterate_epitopes_batched(str(src_path), parsed_epitopes, batch_request_size):
+        if file_entries >= batch_file_size:
+            print("Output file {0} full. Writing to new file.".format(
+                output_filenum))
             output_file.close()
             output_filenum += 1
-            output_file = open(str(dst_path.joinpath(BATCH_FILENAME.format(batch_number=output_filenum))), 'w+')
+            output_file = open(str(dst_path.joinpath(
+                batch_filename.format(batch_number=output_filenum))), 'w+')
             file_entries = 0
 
-        file_entries += parse_epitope_batch(epitope_batch, output_file, parsed_epitopes)
-        
-def Clean_id_lines_from_samples(directory_path):
+        file_entries += parse_epitope_batch(epitope_batch,
+                                            output_file, parsed_epitopes)
+
+
+def Clean_id_lines_from_samples(working_directory_path, input_directory_name, cleaned_directory_name):
     """ 
     cleans the files that are holding proteins (in 'path_to_parse_samples'), 
     in porpuse of the file to hold the antigens sequences only, 
     with line seperator in between two successive antigens 
     """
 
-    path_to_parsed_clean_samples = pathlib.Path(directory_path, PATH_TO_PARSED_CLEAN_SAMPLES)
-    path_to_parsed_clean_samples.mkdir(exist_ok=True) #opening a directory to hold clean data, ready for char_maps
-    path_to_parsed_antigens = "/".join((directory_path, PATH_TO_PARSED_SAMPLES))
-    parsed_antigens = pathlib.Path(path_to_parsed_antigens)
+    cleaned_directory_path = pathlib.Path(
+        working_directory_path, cleaned_directory_name)
+    # opening a directory to hold clean data, ready for char_maps
+    cleaned_directory_path.mkdir(exist_ok=True)
+    parsed_antigens = pathlib.Path(
+        working_directory_path, input_directory_name)
 
     for each_file in parsed_antigens.iterdir():
+        if not each_file.is_file():
+            continue
         cleaned_name = "".join((each_file.name, "_clean_text.text"))
-        cleaned_file = open("/".join((str(path_to_parsed_clean_samples),cleaned_name)),'w+')
-        with open("/".join((path_to_parsed_antigens, each_file.name)), 'r') as unclean_parsed_protein:
+        cleaned_file = open(
+            str(cleaned_directory_path.joinpath(cleaned_name)), 'w+')
+        with open(str(parsed_antigens.joinpath(each_file.name)), 'r') as unclean_parsed_protein:
             for line in unclean_parsed_protein.readlines():
                 if line[0] != '\n' and line[0] != '>':
                     cleaned_file.write(line)
         cleaned_file.close()
-    return 
-    
- #================================================================   
-#if __name__ == "__main__":
-#    file_entries = 0
-#    output_batch = 1
-#    output_file = open(str(pathlib.Path('./samples','parsed_epitopes',BATCH_FILENAME.format(batch_number=output_batch))), 'w+')
-#    added_antigens = dict()
-#
-#    for epitope_batch in iterate_epitopes_batched(SRC_PATH):
-#        if file_entries >= BATCH_FILE_SIZE:
-#            output_file.close()
-#            output_batch += 1
-#            output_file = open(DEST_PATH.format(batch_number=output_batch), 'w+')
-#            file_entries = 0
-
-#        file_entries += parse_epitope_batch(epitope_batch, output_file, added_antigens)
-
+    return

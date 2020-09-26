@@ -4,8 +4,8 @@
   "cv_groups_clustering_threshold" : 0.5,
   "cv_groups_clustering_word_size" : 3,
   "cv_fold" : 10,
-  "temp_output_dir" : "output\\temp",
+  "temp_output_dir" : "samples\\processed\\temp",
   "cd_hit_docker_name" : "quay.io/biocontainers/cd-hit:4.8.1--h8b12597_3",
   "random_seed" : 0,
-  "output_template" : "output\\cv-dataset{}.fasta"
+  "output_template" : "samples\\processed\\cv-dataset{}.fasta"
 }

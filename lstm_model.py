@@ -31,7 +31,6 @@ def upload_sequences(proteins_path):
     with open(proteins_path, 'r') as f:
         proteins = f.read()
         print(f'Batch length: {len(proteins)} chars')
-        print(proteins[7:1234])
         
     return proteins
 
