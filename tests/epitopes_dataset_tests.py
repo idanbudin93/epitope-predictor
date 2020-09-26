@@ -8,23 +8,15 @@ from Bio.SeqRecord import SeqRecord
 from model.Epitope import Epitope
 from model.EpitopesDataset import EpitopesDataset
 
-EPITOPES_BATCH1_FNAME = 'epitopes_batch1.fasta'
-EPITOPES_BATCH2_FNAME = 'epitopes_batch2.fasta'
-EPITOPES_BATCH3_FNAME = 'epitopes_batch3.fasta'
-WRITE_DATASET_RES_FNAME = 'epitopes_dataset_written.fasta'
-RES_DIR_REL_PATH = 'res'
-OUTPUT_DIR_REL_PATH = 'output'
-
-RES_DIR_PATH = path.abspath(RES_DIR_REL_PATH)
-OUTPUT_DIR_PATH = path.abspath(OUTPUT_DIR_REL_PATH)
 
 EPITOPES_BATCHES_PATHS = \
     [
-        path.join(RES_DIR_PATH, epitope_batch_fname)
-        for epitope_batch_fname in [EPITOPES_BATCH1_FNAME, EPITOPES_BATCH2_FNAME, EPITOPES_BATCH3_FNAME]
+        path.abspath('res\\epitopes_batch1.fasta'),
+        path.abspath('res\\epitopes_batch2.fasta'),
+        path.abspath('res\\epitopes_batch3.fasta')
     ]
 
-WRITE_DATASET_RES_PATH = path.join(OUTPUT_DIR_PATH, WRITE_DATASET_RES_FNAME)
+WRITE_DATASET_RES_PATH = path.abspath('output\\epitopes_dataset_written.fasta')
 
 
 def add_verified_regions_lst(epitope: Epitope, verified_regions_lst: List[Tuple[int, int]]) -> Epitope:
@@ -99,6 +91,7 @@ class TestEquality(unittest.TestCase):
 
         self.assertNotEqual(epitopes_dataset1, epitopes_dataset2)
 
+
 class TestMergeIdenticalSeqs(unittest.TestCase):
     def test_merge_identical_seqs(self):
         expected_epitopes = \
@@ -125,36 +118,6 @@ class TestCountVerifiedRegions(unittest.TestCase):
         actual_verified_regions_count = epitopes_dataset.count_verified_regions()
 
         self.assertEqual(expected_verified_regions_count, actual_verified_regions_count)
-
-
-class TestRemoveVerifiedRegionSubsets(unittest.TestCase):
-    def test_remove_verified_regions_subsets(self):
-        expected_epitopes_verified_regions_lst = \
-            [
-                ('aAAA', [(2, 3), (1, 2)]),
-                ('B', [(0, 0)]),
-                ('bBBBB', [(1, 2), (3, 4), (2, 3)]),
-                ('ccCCC', [(3, 4), (2, 3)]),
-                ('DD', [(0, 0), (1, 1)])
-            ]
-
-        expected_epitopes_dataset_len = len(expected_epitopes_verified_regions_lst)
-
-        epitopes_dataset = EpitopesDataset(EPITOPES_BATCHES_PATHS)
-        epitopes_dataset.merge_identical_seqs()
-        epitopes_dataset.remove_verified_regions_subsets()
-        actual_epitopes_dataset_len = len(epitopes_dataset)
-
-        self.assertEqual(expected_epitopes_dataset_len, actual_epitopes_dataset_len)
-        for i in range(len(expected_epitopes_verified_regions_lst)):
-            expected_epitope_seq = expected_epitopes_verified_regions_lst[i][0]
-            expected_epitopes_verified_regions = expected_epitopes_verified_regions_lst[i][1]
-
-            actual_epitope_seq = str(epitopes_dataset[i])
-            actual_epitopes_verified_regions = epitopes_dataset[i].verified_regions
-
-            self.assertEqual(expected_epitope_seq, actual_epitope_seq)
-            self.assertEqual(expected_epitopes_verified_regions, actual_epitopes_verified_regions)
 
 
 class TestWrite(unittest.TestCase):

@@ -10,6 +10,16 @@ EPITOPE_ID_SUFFIX = '...'
 
 
 class EpitopesClusters:
+    """
+    Epitope records clustered as datasets
+
+    Parameters
+    ----------
+    clstr_file_path : str
+        Path to clusters file in clstr format (cd-hit tool output)
+    records_fasta_path : str
+        Path to epitope records file in FASTA format
+    """
     def __init__(self, clstr_file_path: str, records_fasta_path: str):
         self.__epitopes_clusters_lst = self.__parse_clstr_file(clstr_file_path, records_fasta_path)
 
@@ -53,5 +63,13 @@ class EpitopesClusters:
 
         return epitopes_clusters_lst
 
-    def get_num_of_epitopes(self):
+    def get_num_of_epitopes(self) -> int:
+        """
+        Calculates the total number of epitope records in all the clusters
+
+        Returns
+        -------
+        num_of_epitopes : int
+            The total number of epitope records in all the clusters
+        """
         return sum((len(cluster) for cluster in self.__epitopes_clusters_lst))
