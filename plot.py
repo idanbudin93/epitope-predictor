@@ -121,7 +121,6 @@ def plot_fit(fit_res: FitResult, fig=None, log_loss=False, legend=None):
             ax.set_ylabel('Accuracy (%)')
         if legend:
             ax.legend()
-
     return fig, axes
 
 

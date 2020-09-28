@@ -96,17 +96,19 @@ class Trainer(abc.ABC):
             train_acc.append(train_result.accuracy)
 
             test_result = self.test_epoch(dl_test, verbose=verbose)
-            test_loss.extend(train_result.losses)
-            test_acc.append(train_result.accuracy)
+            test_loss.extend(test_result.losses)
+            test_acc.append(test_result.accuracy)
 
-            if best_acc is None or best_acc < test_acc[-1]:
-                best_acc = test_acc[-1]
 
             if epoch >= 1:
-                if best_acc - test_acc[-1] < 0.1:
+                if test_result.accuracy < best_acc + 0.01:
                     epochs_without_improvement += 1
                 else:
                     epochs_without_improvement = 0
+            
+            if best_acc is None or best_acc < test_result.accuracy:
+                best_acc = test_result.accuracy
+
             if early_stopping:
                 if epochs_without_improvement >= early_stopping:
                     break
@@ -272,13 +274,14 @@ class LSTMTrainer(Trainer):
         # - Calculate number of correct char predictions
         
         # - Forward pass
+        self.optimizer.zero_grad()
         predicted, h = self.model(x, self.h)
         self.h = (torch.autograd.Variable(h[0]),torch.autograd.Variable(h[1]))
         predicted = predicted.permute(0, 2, 1)
 
         # - Calculate total loss over sequence
         loss = self.loss_fn(predicted, y)
-        self.optimizer.zero_grad()
+        
 
         # - Backward pass (BPTT)
         loss.backward()

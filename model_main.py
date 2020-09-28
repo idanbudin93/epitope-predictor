@@ -35,14 +35,16 @@ BATCH_FILENAME = 'epitope_batch_{batch_number}'
 BATCH_FILE_SIZE = 5000  # soft limit
 BATCH_REQUEST_SIZE = 25
 
+
 # proccessing samples
 PROCESSED_FOLDER_NAME = "processed"
 CLEAN_PROCESSED_SAMPLES = 'processed_clean_samples'
 
 # ==============Parameters=====================
 # TODO: get those out to config file
-device = device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-checkpoint_file = './checkpoints/lstm_adamw_2_64_0.001'
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+checkpoint_file = './checkpoints/lstm_adamw_2_64_0.001_with_embedding'
+training_plot_path = 'training.png'
 
 # model parameters
 hidden_dim = 64
@@ -53,7 +55,7 @@ dropout = 0.5
 # Train parameters
 lr = 0.001  # learning rate
 num_epochs = 50  # the number of times the model will go over the whole dateset
-early_stopping = 5  # stop after this
+early_stopping = 8  # maximum number of epochs with no improvement in test accuracy, 0 to disable
 
 # Dataset parameters
 seq_len = 1024
@@ -94,6 +96,9 @@ def make_labelled_samples(out_path, clean_processed_samples_dir, char_to_idx, id
 
         samples_list.append(samples)
         labels_list.append(labels)
+    combined_list = list(zip(samples_list, labels_list))
+    random.shuffle(combined_list)
+    samples_list, labels_list = zip(*combined_list)
 
     n_train = int(train_test_ratio*len(samples_list))
     train_samples_list = samples_list[:n_train]
@@ -153,7 +158,7 @@ def get_subset_text(ds_seqs, idx_to_char):
         # Convert subset to text
         subset_text = lstm_model.onehot_to_chars(ds_seqs[subset_start][0], idx_to_char)
         subset_text = lstm_model.capitalize_by_labels(subset_text, ds_seqs[subset_start][1])
-    print(f'Subset text":\n\n{subset_text}')
+    print(f'\nSubset text":\n\n{subset_text}')
     return subset_text
 
 def train_model(model, subset_text, char_maps, dl_train, dl_test):
@@ -180,11 +185,14 @@ def train_model(model, subset_text, char_maps, dl_train, dl_test):
                 # Sample from model to show progress
                 if verbose:
                     print_capitalized_model_text(model, subset_text, char_maps)
+            import matplotlib
             fit_res = trainer.fit(dl_train, dl_test, num_epochs,
                                   post_epoch_fn=post_epoch_fn, early_stopping=early_stopping,
                                   checkpoints=checkpoint_file, print_every=1)
-
+            print("\nFinished training\n")
+            print(f"Saving training plot to: {training_plot_path}\n")
             fig, axes = plot_fit(fit_res)
+            fig.savefig(training_plot_path)
         except KeyboardInterrupt as e:
             print('\n *** Training interrupted by user')
 # ===============================================================================
@@ -197,7 +205,7 @@ def main():
     downloaded_filename = TCELL_CSV_FILENAME
 
     # parsing the downloaded data
-    print("Organizing data, checking for duplicates (it might take a while...)\n")
+    #print("Organizing data, checking for duplicates (it might take a while...)\n")
     #parser.make_samples(out_path, downloaded_filename, PARSED_SAMPLES_FOLDER_NAME,
     #                    BATCH_FILENAME, BATCH_FILE_SIZE, BATCH_REQUEST_SIZE)
     print("Finished parsing data\n")
@@ -207,8 +215,8 @@ def main():
         out_path, PARSED_SAMPLES_FOLDER_NAME)
     run_processing.main(['-i', *parsed_samples_paths])
     print("Done clustering\n")
-    parser.Clean_id_lines_from_samples(
-        out_path, PROCESSED_FOLDER_NAME, CLEAN_PROCESSED_SAMPLES)
+    #parser.Clean_id_lines_from_samples(
+    #    out_path, PROCESSED_FOLDER_NAME, CLEAN_PROCESSED_SAMPLES)
     print("Loading the data to memory and partitioning to train and test groups\n")
 
     # Create dataset of sequences
@@ -229,6 +237,7 @@ def main():
     # get random subset text from test dataset
     subset_text = get_subset_text(ds_test, idx_to_char)
     # see how model works before training at all
+    print("\nModel capitalization before training:\n")
     print_capitalized_model_text(
         model, subset_text.lower(), (char_to_idx, idx_to_char))
     # train the model
