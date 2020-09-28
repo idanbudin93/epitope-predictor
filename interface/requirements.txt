@@ -1,0 +1,4 @@
+matplotlib >= 3.0
+click >= 7.0
+biopython >= 1.70
+# torch >= 1.6.0 torch 1.6.0+cpu is installed manually due to cpuonly option
