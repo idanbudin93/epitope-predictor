@@ -75,6 +75,22 @@ def onehot_to_chars(embedded_text: Tensor, idx_to_char: dict) -> str:
     result = ''.join(map(lambda x: idx_to_char[x], text_idx))
     return result
 
+# EMBEDDING ADDITION
+def onehot_to_idx(embedded_text: Tensor, idx_range: int) -> Tensor:
+    """
+    Partially reverses the embedding of a text sequence, producing a sequence
+    of one-hot embedding indices.
+    :param embedded_text: Text sequence represented as a tensor of shape
+    (N, D) where each row is the one-hot encoding of a character.
+    :return: A tensor of shape N where each element is the one-hot index
+    of a character.
+    """
+    device = embedded_text.get_device() if embedded_text.is_cuda else torch.device('cpu')
+    range_tensor = torch.tensor(range(idx_range), device=device)
+    text_idx = torch.masked_select(range_tensor, embedded_text.to(torch.bool)).tolist()
+    return text_idx
+# EMBEDDING ADDITION
+
 def get_tag(x):
   return 1 if x.isupper() else 0
   
@@ -100,8 +116,6 @@ def chars_to_labelled_samples(text: str, char_to_idx: dict, seq_len: int,
     # 3. Create the labels tensor in a similar way and convert to indices.
     # Note that no explicit loops are required to implement this function.
     # ====== YOUR CODE: ======
-    # 0. remove samples that do not contain epitopes
-    
     # 1. Embed the given text.
     embedded_text = chars_to_onehot(text, char_to_idx)
     # 2. Create the samples tensor by splitting to groups of seq_len.
@@ -170,7 +184,7 @@ def capitalize(text, distribution):
 
 class LSTMTagger(nn.Module):
 
-    def __init__(self, hidden_dim, n_layers, input_dim, tagset_size, drop_prob, bidirectional, device):
+    def __init__(self, hidden_dim, n_layers, input_dim, tagset_size, drop_prob, bidirectional, device, embedding_dim=None):
         """
         input_size – The number of expected features in the input x (at each timestep)
         hidden_size – The number of features in the hidden state h
@@ -184,6 +198,7 @@ class LSTMTagger(nn.Module):
         :param n_layers
         :param input_dim
         :param tagset_size
+        :param embedding_dim: output dimension of the embedding layer. Can be set to None to disable word embedding.
         """
         super(LSTMTagger, self).__init__()
         # The LSTM takes one-hot embeddings as inputs, and outputs hidden states
@@ -196,11 +211,18 @@ class LSTMTagger(nn.Module):
         self.hidden_dim = hidden_dim
         self.num_layers = n_layers
         self.device = device
-        self.lstm = nn.LSTM(input_dim, hidden_dim, n_layers, batch_first=True, dropout=drop_prob, bidirectional=bidirectional)
+        
+        lstm_dim = input_dim
+        # EMBEDDING ADDITION
+        if embedding_dim:
+            self.embedding = nn.Embedding(input_dim, embedding_dim)
+            lstm_dim = embedding_dim
+        # EMBEDDING ADDITION
+        self.lstm = nn.LSTM(lstm_dim, hidden_dim, n_layers, batch_first=True, dropout=drop_prob, bidirectional=bidirectional)
 
         # The linear layer that maps from hidden state space to tag space
         self.hidden2tag = nn.Linear(hidden_dim*self.multiply_bi, tagset_size)
-
+    
     def forward(self, input_batch: Tensor, states: Tensor = None):
         #h0 = torch.zeros(self.num_layers*self.multiply_bi, x.size(0), self.hidden_dim).to(self.device)
         #c0 = torch.zeros(self.num_layers*self.multiply_bi, x.size(0), self.hidden_dim).to(self.device)
@@ -209,6 +231,21 @@ class LSTMTagger(nn.Module):
         #out = functional.log_softmax(tag_space, dim=1)
 
         #return out, (hn, cn)
-        lstm_out, (hn, cn) = self.lstm(input_batch, states)
+        
+        lstm_batch = input_batch
+        # EMBEDDING ADDITION
+        if hasattr(self, 'embedding'):
+            embed_batch = torch.Tensor([
+              onehot_to_idx(seq, 26) for seq in input_batch
+            ])
+            lstm_batch = self.embedding(embed_batch.to(dtype=torch.long))
+        # EMBEDDING ADDITION
+        if states == None:
+          states = self.init_hidden(input_batch.shape[0], input_batch.device)            
+        lstm_out, (hn, cn) = self.lstm(lstm_batch, states)
         tag_space = self.hidden2tag(lstm_out)
         return tag_space, (hn, cn)
+
+    def init_hidden(self, batch_size, device):
+        return (torch.rand(self.num_layers*self.multiply_bi, batch_size, self.hidden_dim, device = device),
+                torch.rand(self.num_layers*self.multiply_bi, batch_size, self.hidden_dim, device = device))
