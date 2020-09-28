@@ -223,7 +223,7 @@ def duplicate_epitope(validation_epitopes, antigen_id, epitope_seq):
         True if the reference epitope is a duplicate, false otherwise.
     """
     if antigen_id in validation_epitopes:
-        return epitope_seq == validation_epitopes[antigen_id]
+        return epitope_seq in validation_epitopes[antigen_id]
     return False
 
 
@@ -288,7 +288,9 @@ def parse_epitope_batch(epitope_batch, output_file, parsed_epitopes):
                 write_entry(output_file, highlighted_sequence,
                             id=res_id, name=result.name)
 
-                parsed_epitopes[res_id] = epitope_batch[res_id]['seq']
+                if res_id not in parsed_epitopes:
+                    parsed_epitopes[res_id] = set()
+                parsed_epitopes[res_id].add(epitope_batch[res_id]['seq'])
                 added_epitopes += 1
             else:
                 print("{0}::{1} failed {2} validation".format(
