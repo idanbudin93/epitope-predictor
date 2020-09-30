@@ -13,7 +13,7 @@ from torch import Tensor
 import torch.utils.data
 import torch.nn as nn
 import torch.optim as optim
-
+import json
 # ===================Our packages====================
 import download_data as download
 import parse_tcell_epitope as parser
@@ -39,6 +39,9 @@ BATCH_REQUEST_SIZE = 25
 PROCESSED_FOLDER_NAME = "processed"
 CLEAN_PROCESSED_SAMPLES = 'processed_clean_samples'
 
+# Config file name
+CONFIG_FILE = "config.json"
+
 # checks for random model initialization
 RANDOM_UPPERCASE_THRESHOLD = 0.3
 
@@ -50,6 +53,8 @@ batch_size = 1
 train_test_ratio = 0.8
 # ==============Globals=====================
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+with open(CONFIG_FILE) as config_file:
+        config = json.load(config_file)["lstm_model_config"]
 # =================================================
 
 
@@ -145,10 +150,12 @@ def is_random(text):
 
 def train_model(model, subset_text, char_maps, dl_train, dl_test):
     loss_fn = LSTMTrainer.avg_binary_loss(nn.CrossEntropyLoss)
-    optimizer = optim.AdamW(model.parameters(), lr=lr)
+    optimizer = optim.AdamW(model.parameters(), lr=config['lr'])
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='max', factor=0.5, patience=2, verbose=True)
     trainer = LSTMTrainer(model, loss_fn, optimizer, device)
+    checkpoint_file = config['checkpoint_file']
+    early_stopping = config['early_stopping']
 
     # Train, unless final checkpoint is found
     checkpoint_file_final = f'{checkpoint_file}_final.pt'
@@ -167,10 +174,11 @@ def train_model(model, subset_text, char_maps, dl_train, dl_test):
             if verbose:
                 print(get_capitalized_model_text(
                     model, subset_text, char_maps))
-        fit_res = trainer.fit(dl_train, dl_test, num_epochs,
+        fit_res = trainer.fit(dl_train, dl_test, config['num_epochs'],
                               post_epoch_fn=post_epoch_fn, early_stopping=early_stopping,
                               checkpoints=checkpoint_file, print_every=1)
         return fit_res
+
 # ===============================================================================
 
 
@@ -214,8 +222,8 @@ def main():
     print("\nInitializing a random model with a random enough capitalization before training\n")
     while not is_random(model_text):
         # init model
-        model = lstm_model.LSTMTagger(hidden_dim=hidden_dim, input_dim=vocab_len, tagset_size=TAGSET_SIZE,
-                                      n_layers=n_layers, bidirectional=bidirectional, drop_prob=dropout, device=device)
+        model = lstm_model.LSTMTagger(hidden_dim=config["hidden_dim"], input_dim=vocab_len, tagset_size=TAGSET_SIZE,
+                                      n_layers=config["n_layers"], bidirectional=(config["bidirectional"] == 1), drop_prob=config["dropout"], device=device)
         model.to(device)
         model_text = get_capitalized_model_text(
             model, subset_text.lower(), (char_to_idx, idx_to_char))
@@ -228,6 +236,7 @@ def main():
                                                idx_to_char), dl_train, dl_test)
     print("\nFinished training\n")
     # plot the training results
+    training_plot_path = config['training_plot_path']
     print(f"Saving training plot to: {training_plot_path}\n")
     fig, _ = plot_fit(fit_res)
     fig.savefig(training_plot_path)

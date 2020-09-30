@@ -292,16 +292,16 @@ class LSTMTrainer(Trainer):
                  in-epitopes letters and out
         """
         def avg_binary_cross_entropy(predicted, real):
-        count_of_1 = real.sum()
-        count_of_0 = (1-real).sum()
-        if count_of_0 == 0 or count_of_1 == 0:
-            return loss_fn()(predicted, real)
-        factor = torch.true_divide(
-            count_of_1*count_of_0, count_of_1+count_of_0)
-        weight = torch.tensor([torch.true_divide(factor, count_of_0), torch.true_divide(
-            factor, count_of_1)], device=real.device)
-        return loss_fn(weight=weight)(predicted, real)
-    return avg_binary_cross_entropy
+            count_of_1 = real.sum()
+            count_of_0 = (1-real).sum()
+            if count_of_0 == 0 or count_of_1 == 0:
+                return loss_fn()(predicted, real)
+            factor = torch.true_divide(
+                count_of_1*count_of_0, count_of_1+count_of_0)
+            weight = torch.tensor([torch.true_divide(factor, count_of_0), torch.true_divide(
+                factor, count_of_1)], device=real.device)
+            return loss_fn(weight=weight)(predicted, real)
+        return avg_binary_cross_entropy
 
     def train_batch(self, batch) -> BatchResult:
         """
@@ -332,7 +332,7 @@ class LSTMTrainer(Trainer):
 
         # Calculate number of correct char predictions
         with torch.no_grad():
-            cur_accuracy, fp, fn = calc_accuracy(predicted, y)
+            cur_accuracy, fp, fn = LSTMTrainer.calc_accuracy(predicted, y)
         self.h[0].detach()
         self.h[1].detach()
 
@@ -357,6 +357,6 @@ class LSTMTrainer(Trainer):
             # Loss calculation
             loss = self.loss_fn(predicted, y)
             # Calculate number of correct char predictions
-            cur_accuracy, fp, fn = calc_accuracy(predicted, y)
+            cur_accuracy, fp, fn = LSTMTrainer.calc_accuracy(predicted, y)
 
         return BatchResult(loss.item(), cur_accuracy.item(), fp.item(), fn.item())

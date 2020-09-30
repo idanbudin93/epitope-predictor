@@ -8,14 +8,14 @@
     "temp_output_dir": "samples\\processed\\temp",
     "cd_hit_docker_name": "quay.io/biocontainers/cd-hit:4.8.1--h8b12597_3",
     "random_seed": 0,
-    "output_template": "samples\\processed\\cv-group{}.fasta",
+    "output_template": "samples\\processed\\cv-group{}.fasta"
   },
   "lstm_model_config": {
     "checkpoint_file": "./checkpoints/lstm",
-    "training_plot_path": "training.png'",
+    "training_plot_path": "training.png",
     "hidden_dim": 64,
     "n_layers": 2,
-    "bidirectional": "True",
+    "bidirectional": 1,
     "dropout": 0.5,
     "lr": 0.001,
     "num_epochs": 50,
