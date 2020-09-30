@@ -92,7 +92,7 @@ def plot_fit(fit_res: FitResult, fig=None, log_loss=False, legend=None):
     :return: The figure.
     """
     if fig is None:
-        fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(16, 10),
+        fig, axes = plt.subplots(nrows=2, ncols=4, figsize=(16, 10),
                                  sharex='col', sharey=False)
         axes = axes.reshape(-1)
     else:
@@ -103,22 +103,29 @@ def plot_fit(fit_res: FitResult, fig=None, log_loss=False, legend=None):
             if line.get_label() == legend:
                 line.remove()
 
-    p = itertools.product(['train', 'test'], ['loss', 'acc'])
-    for idx, (traintest, lossacc) in enumerate(p):
+    p = itertools.product(['train', 'test'], [
+                          'loss', 'acc', 'fp', 'fn'])
+    for idx, (traintest, lossaccfpfn) in enumerate(p):
         ax = axes[idx]
-        attr = f'{traintest}_{lossacc}'
+        attr = f'{traintest}_{lossaccfpfn}'
         data = getattr(fit_res, attr)
         h = ax.plot(np.arange(1, len(data) + 1), data, label=legend)
         ax.set_title(attr)
-        if lossacc == 'loss':
-            ax.set_xlabel('Iteration #')
+        if lossaccfpfn == 'loss':
+            ax.set_xlabel('Epoch #')
             ax.set_ylabel('Loss')
             if log_loss:
                 ax.set_yscale('log')
                 ax.set_ylabel('Loss (log)')
-        else:
+        elif lossaccfpfn == 'acc':
             ax.set_xlabel('Epoch #')
             ax.set_ylabel('Accuracy (%)')
+        elif lossaccfpfn == 'fp':
+            ax.set_xlabel('Epoch #')
+            ax.set_ylabel('FP. Rate (%)')
+        elif lossaccfpfn == 'fn':
+            ax.set_xlabel('Epoch #')
+            ax.set_ylabel('FN. Rate (%)')
         if legend:
             ax.legend()
     return fig, axes
@@ -139,7 +146,7 @@ def prob_heat(prob):
     return red_heat, green_heat, blue_heat
 
 
-def plot_hot_cold(y_data, prob_color=None,threshold=0.9):
+def plot_hot_cold(y_data, prob_color=None, threshold=0.9):
     """
     Plot a probability vector with additional optionality to color points and label stretches
     of high probability. The default coloring scheme gives hotter colors for higher probabilities,
@@ -156,20 +163,20 @@ def plot_hot_cold(y_data, prob_color=None,threshold=0.9):
     x_data = [i + 1 for i in range(len(y_data))]
     colors = [prob_heat(p) if not prob_color else prob_color for p in y_data]
 
-    _, ax = plt.subplots(figsize=(15,5))
+    _, ax = plt.subplots(figsize=(15, 5))
     ax.scatter(x_data, y_data, c=colors, marker='o')
     ax.plot(x_data, y_data, color='black')
     ax.xlabel('position')
     ax.ylabel('probability')
-    
+
     if 0.5 < threshold < 1.0:
         ax.xticks(threshold)
 
     above_threshold = False
     for x, y in zip(x_data, y_data):
-      if y >= threshold and not above_threshold:
-        ax.annotate(str(x), (x, y))
-        above_threshold = True
-      if y < threshold:
-        above_threshold = False
+        if y >= threshold and not above_threshold:
+            ax.annotate(str(x), (x, y))
+            above_threshold = True
+        if y < threshold:
+            above_threshold = False
     return ax

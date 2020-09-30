@@ -7,7 +7,9 @@ class BatchResult(NamedTuple):
     and number of correct classifications.
     """
     loss: float
-    num_correct: int
+    accuracy: float
+    fp_rate: float
+    fn_rate: float
 
 
 class EpochResult(NamedTuple):
@@ -15,8 +17,10 @@ class EpochResult(NamedTuple):
     Represents the result of training for a single epoch: the loss per batch
     and accuracy on the dataset (train or test).
     """
-    losses: List[float]
+    loss: float
     accuracy: float
+    fp_rate: float
+    fn_rate: float
 
 
 class FitResult(NamedTuple):
@@ -28,6 +32,10 @@ class FitResult(NamedTuple):
     num_epochs: int
     train_loss: List[float]
     train_acc: List[float]
+    train_fp: List[float]
+    train_fn: List[float]
     test_loss: List[float]
     test_acc: List[float]
+    test_fp: List[float]
+    test_fn: List[float]
 
