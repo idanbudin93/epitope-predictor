@@ -12,13 +12,12 @@ from typing import Callable, Any
 from pathlib import Path
 from training_helpers import BatchResult, EpochResult, FitResult
 
-#======================Train=============================
 
 class Trainer(abc.ABC):
     """
     A class abstracting the various tasks of training models.
 
-    Provides methods at multiple levels of granularity:
+    Provides methods at multiple levels:
     - Multiple epochs (fit)
     - Single epoch (train_epoch/test_epoch)
     - Single batch (train_batch/test_batch)
@@ -30,8 +29,9 @@ class Trainer(abc.ABC):
         :param model: Instance of the model to train.
         :param loss_fn: The loss function to evaluate with.
         :param optimizer: The optimizer to train with.
-        :param device: torch.device to run training on (CPU or GPU).
+        :param device: torch.device to run training on ('cpu' or 'cuda).
         """
+
         self.model = model
         self.loss_fn = loss_fn
         self.optimizer = optimizer
@@ -57,6 +57,7 @@ class Trainer(abc.ABC):
         :param post_epoch_fn: A function to call after each epoch completes.
         :return: A FitResult object containing train and test losses per epoch.
         """
+
         actual_num_epochs = 0
         train_loss, train_acc, test_loss, test_acc = [], [], [], []
 
@@ -83,12 +84,6 @@ class Trainer(abc.ABC):
                 verbose = True
             self._print(f'--- EPOCH {epoch+1}/{num_epochs} ---', verbose)
 
-            # TODO: Train & evaluate for one epoch
-            # - Use the train/test_epoch methods.
-            # - Save losses and accuracies in the lists above.
-            # - Implement early stopping. This is a very useful and
-            #   simple regularization technique that is highly recommended.
-            # ====== YOUR CODE: ======
             actual_num_epochs = epoch
 
             train_result = self.train_epoch(dl_train, verbose=verbose)
@@ -99,13 +94,12 @@ class Trainer(abc.ABC):
             test_loss.extend(test_result.losses)
             test_acc.append(test_result.accuracy)
 
-
             if epoch >= 1:
                 if test_result.accuracy < best_acc + 0.01:
                     epochs_without_improvement += 1
                 else:
                     epochs_without_improvement = 0
-            
+
             if best_acc is None or best_acc < test_result.accuracy:
                 best_acc = test_result.accuracy
 
@@ -113,13 +107,15 @@ class Trainer(abc.ABC):
                 if epochs_without_improvement >= early_stopping:
                     break
 
-            # ========================
-
             # Save model checkpoint if requested
             if save_checkpoint and checkpoint_filename is not None:
                 saved_state = dict(best_acc=best_acc,
                                    ewi=epochs_without_improvement,
-                                   model_state=self.model.state_dict())
+                                   model_state=self.model.state_dict(),
+                                   hidden_dim=self.model.hidden_dim,
+                                   n_layers=self.model.num_layers,
+                                   bidirectional=(self.model.multiply_bi == 2),
+                                   dropout=self.model.dropout)
                 torch.save(saved_state, checkpoint_filename)
                 print(f'*** Saved checkpoint {checkpoint_filename} '
                       f'at epoch {epoch+1}')
@@ -232,95 +228,115 @@ class LSTMTrainer(Trainer):
         super().__init__(model, loss_fn, optimizer, device)
 
     def train_epoch(self, dl_train: DataLoader, **kw):
-  
+        """
+         :param dl_train: Dataloader for the training set.
+         """
         self.h = None
         return super().train_epoch(dl_train, **kw)
 
     def test_epoch(self, dl_test: DataLoader, **kw):
-
-        # ====== YOUR CODE: ======
+        """
+        """
         self.h = None
-        # ========================
         return super().test_epoch(dl_test, **kw)
-    
-    def calc_accuracy(self, predicted, y):
+
+    @staticmethod
+    def calc_accuracy(predicted, y):
+        """
+        """
         max_obj = torch.max(predicted, 1)
         y_vec = y.view(-1)
         max_obj_vec = max_obj.indices.view(-1)
         class_1_idx = torch.where(y_vec == 1)[0]
         class_0_idx = torch.where(y_vec == 0)[0]
-        if len(class_1_idx) == 0:  
-          cur_accuracy = torch.true_divide(torch.eq(max_obj.indices, y).int().sum(), len(class_0_idx))
+        if len(class_1_idx) == 0:
+            cur_accuracy = torch.true_divide(
+                torch.eq(max_obj.indices, y).int().sum(), len(class_0_idx))
         elif len(class_0_idx) == 0:
-          cur_accuracy = torch.true_divide(torch.eq(max_obj.indices, y).int().sum(), len(class_1_idx))
+            cur_accuracy = torch.true_divide(
+                torch.eq(max_obj.indices, y).int().sum(), len(class_1_idx))
         else:
-          a = torch.true_divide(torch.eq(max_obj_vec[class_1_idx], y_vec[class_1_idx]).int().sum(), 2.0 * len(class_1_idx))    
-          b = torch.true_divide(torch.eq(max_obj_vec[class_0_idx], y_vec[class_0_idx]).int().sum(), 2.0 * len(class_0_idx))
-          cur_accuracy = a + b
+            a = torch.true_divide(torch.eq(
+                max_obj_vec[class_1_idx], y_vec[class_1_idx]).int().sum(), 2.0 * len(class_1_idx))
+            b = torch.true_divide(torch.eq(
+                max_obj_vec[class_0_idx], y_vec[class_0_idx]).int().sum(), 2.0 * len(class_0_idx))
+            cur_accuracy = a + b
         return cur_accuracy
 
+    @staticmethod
+    def avg_binary_loss(loss_fn):
+        """
+
+        :return: function that averges the given loss function between 
+                 in-epitopes letters and out
+        """
+        def avg_binary_cross_entropy(predicted, real):
+            count_of_1 = real.sum()
+            count_of_0 = (1-real).sum()
+            if count_of_0 == 0 or count_of_1 == 0:
+                return loss_fn()(predicted, real)
+            weight = torch.tensor([torch.true_divide(1.0, count_of_0), torch.true_divide(
+                1.0, count_of_1)], device=real.device)
+            return loss_fn(weight=weight)(predicted, real)
+
+    return avg_binary_cross_entropy
+
     def train_batch(self, batch) -> BatchResult:
+        """
+         Train the LSTM model on one batch of data.
+         :param batch: batch of samples
+         :return:  A BatchResult object containing  A FitResult object containing train losses and accuracy
+        """
+        # TODO:
         x, y = batch
         x = x.to(self.device, dtype=torch.float)  # (B,S,V)
         y = y.to(self.device, dtype=torch.long)  # (B,S)
-        seq_len = y.shape[1]
+
         batch_size = y.shape[0]
 
-        # Train the LSTM model on one batch of data.
-        # - Forward pass
-        # - Calculate total loss over sequence
-        # - Backward pass (BPTT)
-        # - Update params
-        # - Calculate number of correct char predictions
-        
-        # - Forward pass
+        # Forward pass
         self.optimizer.zero_grad()
         predicted, h = self.model(x, self.h)
-        self.h = (torch.autograd.Variable(h[0]),torch.autograd.Variable(h[1]))
+        self.h = (torch.autograd.Variable(h[0]), torch.autograd.Variable(h[1]))
         predicted = predicted.permute(0, 2, 1)
 
-        # - Calculate total loss over sequence
+        # Calculate total loss over sequence
         loss = self.loss_fn(predicted, y)
-        
 
-        # - Backward pass (BPTT)
+        # Backward pass (BPTT)
         loss.backward()
         #torch.nn.utils.clip_grad_norm(self.model.parameters(), max_norm=1)
 
-        # - Update params
+        # Update params
         self.optimizer.step()
 
-        # - Calculate number of correct char predictions
-        cur_accuracy = self.calc_accuracy(predicted, y)
+        # Calculate number of correct char predictions
+        cur_accuracy = calc_accuracy(predicted, y)
         self.h[0].detach()
         self.h[1].detach()
-        # ========================
 
-        # Note: scaling num_correct by seq_len because each sample has seq_len
-        # different predictions.
         return BatchResult(loss.item(), cur_accuracy.item() * batch_size)
 
     def test_batch(self, batch) -> BatchResult:
+        """
+        Evaluate the LSTM model on one a batch of data.
+        :param Batch: batch of embedded samples
+        :return:
+
+        """
+        # TODO
         x, y = batch
         x = x.to(self.device, dtype=torch.float)  # (B,S,V)
         y = y.to(self.device, dtype=torch.long)  # (B,S)
-        seq_len = y.shape[1]
         batch_size = y.shape[0]
 
-        with torch.no_grad():#it is test, not training
-            # TODO: Evaluate the RNN model on one batch of data.
-            # - Forward pass
-            # - Loss calculation
-            # - Calculate number of correct predictions
-            # ====== YOUR CODE: ======
+        with torch.no_grad():  # it is test, not training
+            # Forward pass
             predicted, self.h = self.model(x, self.h)
             predicted = predicted.permute(0, 2, 1)
+            # Loss calculation
             loss = self.loss_fn(predicted, y)
-            # - Calculate number of correct char predictions
-            cur_accuracy = self.calc_accuracy(predicted, y)
-            # ========================
+            # Calculate number of correct char predictions
+            cur_accuracy = calc_accuracy(predicted, y)
 
         return BatchResult(loss.item(), cur_accuracy.item() * batch_size)
-
-
-    #======================Test===========================

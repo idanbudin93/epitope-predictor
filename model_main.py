@@ -25,7 +25,7 @@ import train_and_test
 
 # =================Constants=========================
 TAGSET_SIZE = 2
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # parser constants
 TCELL_DOWNLOAD_URL = "https://www.iedb.org/downloader.php?file_name=doc/tcell_full_v3.zip"
 TCELL_CSV_FILENAME = 'tcell_proteins.csv'
@@ -41,21 +41,6 @@ PROCESSED_FOLDER_NAME = "processed"
 CLEAN_PROCESSED_SAMPLES = 'processed_clean_samples'
 
 # ==============Parameters=====================
-# TODO: get those out to config file
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-checkpoint_file = './checkpoints/lstm_adamw_2_64_0.001_with_embedding'
-training_plot_path = 'training.png'
-
-# model parameters
-hidden_dim = 64
-n_layers = 2
-bidirectional = True
-dropout = 0.5
-
-# Train parameters
-lr = 0.001  # learning rate
-num_epochs = 50  # the number of times the model will go over the whole dateset
-early_stopping = 8  # maximum number of epochs with no improvement in test accuracy, 0 to disable
 
 # Dataset parameters
 seq_len = 1024
@@ -65,16 +50,6 @@ train_test_ratio = 0.8
 # =================================================
 
 
-def avg_binary_loss(loss_fn):
-    def avg_binary_cross_entropy(predicted, real):
-        count_of_1 = real.sum()
-        count_of_0 = (1-real).sum()
-        if count_of_0 == 0 or count_of_1 == 0:
-            return loss_fn()(predicted, real)
-        weight = torch.tensor([torch.true_divide(1.0, count_of_0), torch.true_divide(
-            1.0, count_of_1)], device=real.device)
-        return loss_fn(weight=weight)(predicted, real)
-    return avg_binary_cross_entropy
 
 
 def make_labelled_samples(out_path, clean_processed_samples_dir, char_to_idx, idx_to_char, train_test_ratio):
@@ -162,7 +137,7 @@ def get_subset_text(ds_seqs, idx_to_char):
     return subset_text
 
 def train_model(model, subset_text, char_maps, dl_train, dl_test):
-    loss_fn = avg_binary_loss(nn.CrossEntropyLoss)
+    loss_fn = LSTMTrainer.avg_binary_loss(nn.CrossEntropyLoss)
     optimizer = optim.AdamW(model.parameters(), lr=lr)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='max', factor=0.5, patience=2, verbose=True)

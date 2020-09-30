@@ -44,7 +44,7 @@ def get_config(config_path: str) -> dict:
         Dictionary holding the configurations
     """
     with open(config_path) as config_file:
-        return json.load(config_file)
+        return json.load(config_file)["preprocess_config"]
 
 
 def get_cd_hit_docker_img(docker_client: DockerClient, cd_hit_docker_name: str) -> str:
