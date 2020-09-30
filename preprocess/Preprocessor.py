@@ -133,4 +133,7 @@ class Processor:
             print('\tverified regions:', epitopes_cv_datasets[i].count_verified_regions())
 
     def cleanup(self):
+        """
+        Removing the temporary output directory
+        """
         rmtree(self.__temp_output_dir)
