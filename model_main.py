@@ -40,6 +40,9 @@ BATCH_REQUEST_SIZE = 25
 PROCESSED_FOLDER_NAME = "processed"
 CLEAN_PROCESSED_SAMPLES = 'processed_clean_samples'
 
+# checks for random model initialization
+RANDOM_UPPERCASE_THRESHOLD = 0.3
+
 # ==============Parameters=====================
 
 # Dataset parameters
@@ -71,9 +74,6 @@ def make_labelled_samples(out_path, clean_processed_samples_dir, char_to_idx, id
 
         samples_list.append(samples)
         labels_list.append(labels)
-    combined_list = list(zip(samples_list, labels_list))
-    random.shuffle(combined_list)
-    samples_list, labels_list = zip(*combined_list)
 
     n_train = int(train_test_ratio*len(samples_list))
     train_samples_list = samples_list[:n_train]
@@ -112,12 +112,10 @@ def get_dataloaders(train_samples, train_labels, test_samples, test_labels):
     return dl_train, dl_test, ds_test
 
 
-def print_capitalized_model_text(model, text, char_maps):
+def get_capitalized_model_text(model, text, char_maps):
     probabilities = lstm_model.get_probabilities(
         model, text, char_maps, T=0.1)
-    capitalized_text = lstm_model.capitalize(
-        text, probabilities)
-    print(capitalized_text)
+    return lstm_model.capitalize(text, probabilities)
 
 
 def get_parsed_samples_paths(out_path, parsed_samples_folder_name):
@@ -125,16 +123,27 @@ def get_parsed_samples_paths(out_path, parsed_samples_folder_name):
     p = parsed_samples_path.glob('**/*')
     return tuple([str(x) for x in p if x.is_file()])
 
+
 def get_subset_text(ds_seqs, idx_to_char):
     subset_text = ''
     while subset_text.lower() == subset_text:
         # Pick a tiny subset of the dataset
         subset_start = random.randint(0, len(ds_seqs))
         # Convert subset to text
-        subset_text = lstm_model.onehot_to_chars(ds_seqs[subset_start][0], idx_to_char)
-        subset_text = lstm_model.capitalize_by_labels(subset_text, ds_seqs[subset_start][1])
+        subset_text = lstm_model.onehot_to_chars(
+            ds_seqs[subset_start][0], idx_to_char)
+        subset_text = lstm_model.capitalize_by_labels(
+            subset_text, ds_seqs[subset_start][1])
     print(f'\nSubset text":\n\n{subset_text}')
     return subset_text
+
+
+def is_random(text):
+    if len(text) == 0:
+        return False
+    upper_p = sum(map(str.isupper, text)) / len(text)
+    return upper_p >= RANDOM_UPPERCASE_THRESHOLD and upper_p <= 1 - RANDOM_UPPERCASE_THRESHOLD
+
 
 def train_model(model, subset_text, char_maps, dl_train, dl_test):
     loss_fn = LSTMTrainer.avg_binary_loss(nn.CrossEntropyLoss)
@@ -153,23 +162,17 @@ def train_model(model, subset_text, char_maps, dl_train, dl_test):
         model.load_state_dict(saved_state['model_state'])
 
     else:
-        try:
-            def post_epoch_fn(epoch, test_res, train_res, verbose):
-                # Update learning rate
-                scheduler.step(test_res.accuracy)
-                # Sample from model to show progress
-                if verbose:
-                    print_capitalized_model_text(model, subset_text, char_maps)
-            import matplotlib
-            fit_res = trainer.fit(dl_train, dl_test, num_epochs,
-                                  post_epoch_fn=post_epoch_fn, early_stopping=early_stopping,
-                                  checkpoints=checkpoint_file, print_every=1)
-            print("\nFinished training\n")
-            print(f"Saving training plot to: {training_plot_path}\n")
-            fig, axes = plot_fit(fit_res)
-            fig.savefig(training_plot_path)
-        except KeyboardInterrupt as e:
-            print('\n *** Training interrupted by user')
+        def post_epoch_fn(epoch, test_res, train_res, verbose):
+            # Update learning rate
+            scheduler.step(test_res.accuracy)
+            # Sample from model to show progress
+            if verbose:
+                print(get_capitalized_model_text(
+                    model, subset_text, char_maps))
+        fit_res = trainer.fit(dl_train, dl_test, num_epochs,
+                              post_epoch_fn=post_epoch_fn, early_stopping=early_stopping,
+                              checkpoints=checkpoint_file, print_every=1)
+        return fit_res
 # ===============================================================================
 
 
@@ -181,17 +184,17 @@ def main():
 
     # parsing the downloaded data
     #print("Organizing data, checking for duplicates (it might take a while...)\n")
-    #parser.make_samples(out_path, downloaded_filename, PARSED_SAMPLES_FOLDER_NAME,
+    # parser.make_samples(out_path, downloaded_filename, PARSED_SAMPLES_FOLDER_NAME,
     #                    BATCH_FILENAME, BATCH_FILE_SIZE, BATCH_REQUEST_SIZE)
     print("Finished parsing data\n")
     # pre-proecessing the data
     print("Clustering data for train-test independence\n")
-    parsed_samples_paths = get_parsed_samples_paths(
-        out_path, PARSED_SAMPLES_FOLDER_NAME)
-    run_processing.main(['-i', *parsed_samples_paths])
+    # parsed_samples_paths = get_parsed_samples_paths(
+    #    out_path, PARSED_SAMPLES_FOLDER_NAME)
+    #run_processing.main(['-i', *parsed_samples_paths])
     print("Done clustering\n")
-    #parser.Clean_id_lines_from_samples(
-    #    out_path, PROCESSED_FOLDER_NAME, CLEAN_PROCESSED_SAMPLES)
+    parser.Clean_id_lines_from_samples(
+        out_path, PROCESSED_FOLDER_NAME, CLEAN_PROCESSED_SAMPLES)
     print("Loading the data to memory and partitioning to train and test groups\n")
 
     # Create dataset of sequences
@@ -206,18 +209,30 @@ def main():
     # Create DataLoader returning batches of samples.
     dl_train, dl_test, ds_test = get_dataloaders(
         train_samples, train_labels, test_samples, test_labels)
-    # init model
-    model = lstm_model.LSTMTagger(hidden_dim=hidden_dim, input_dim=vocab_len, tagset_size=TAGSET_SIZE,
-                                  n_layers=n_layers, bidirectional=bidirectional, drop_prob=dropout, device=device)
     # get random subset text from test dataset
     subset_text = get_subset_text(ds_test, idx_to_char)
+    model_text = ''
+    model = None
+    print("\nInitializing a random model with a random enough capitalization before training\n")
+    while not is_random(model_text):
+        # init model
+        model = lstm_model.LSTMTagger(hidden_dim=hidden_dim, input_dim=vocab_len, tagset_size=TAGSET_SIZE,
+                                      n_layers=n_layers, bidirectional=bidirectional, drop_prob=dropout, device=device)
+        model.to(device)
+        model_text = get_capitalized_model_text(
+            model, subset_text.lower(), (char_to_idx, idx_to_char))
+
     # see how model works before training at all
-    print("\nModel capitalization before training:\n")
-    print_capitalized_model_text(
-        model, subset_text.lower(), (char_to_idx, idx_to_char))
+    print("Model capitalization before training:\n")
+    print(model_text)
     # train the model
-    train_model(model, subset_text, (char_to_idx,
-                                     idx_to_char), dl_train, dl_test)
+    fit_res = train_model(model, subset_text, (char_to_idx,
+                                               idx_to_char), dl_train, dl_test)
+    print("\nFinished training\n")
+    # plot the training results
+    print(f"Saving training plot to: {training_plot_path}\n")
+    fig, _ = plot_fit(fit_res)
+    fig.savefig(training_plot_path)
 
 
 if __name__ == "__main__":

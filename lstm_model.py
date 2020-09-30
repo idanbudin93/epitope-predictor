@@ -267,13 +267,14 @@ class LSTMTagger(nn.Module):
         lstm_batch = input_batch
         # EMBEDDING ADDITION
         if hasattr(self, 'embedding'):
-            embed_batch = torch.Tensor([
+            embed_batch = torch.tensor([
               onehot_to_idx(seq, 26) for seq in input_batch
-            ])
-            lstm_batch = self.embedding(embed_batch.to(dtype=torch.long))
+            ], dtype=torch.long, device=self.device)
+            lstm_batch = self.embedding(embed_batch)
         # EMBEDDING ADDITION
+
         if states == None:
-          states = self.init_hidden(input_batch.shape[0], input_batch.device)            
+          states = self.init_hidden(input_batch.shape[0], self.device)            
         lstm_out, (hn, cn) = self.lstm(lstm_batch, states)
         tag_space = self.hidden2tag(lstm_out)
         return tag_space, (hn, cn)
