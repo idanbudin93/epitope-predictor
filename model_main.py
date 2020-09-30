@@ -30,7 +30,6 @@ TCELL_DOWNLOAD_URL = "https://www.iedb.org/downloader.php?file_name=doc/tcell_fu
 TCELL_CSV_FILENAME = 'tcell_proteins.csv'
 out_path = "./samples"
 PARSED_SAMPLES_FOLDER_NAME = 'parsed_samples'
-BATCH_FILENAME = 'epitope_batch_{batch_number}'
 BATCH_FILE_SIZE = 5000  # soft limit
 BATCH_REQUEST_SIZE = 25
 
@@ -189,9 +188,8 @@ def main():
     downloaded_filename = TCELL_CSV_FILENAME
 
     # parsing the downloaded data
-    #print("Organizing data, checking for duplicates (it might take a while...)\n")
-    # parser.make_samples(out_path, downloaded_filename, PARSED_SAMPLES_FOLDER_NAME,
-    #                    BATCH_FILENAME, BATCH_FILE_SIZE, BATCH_REQUEST_SIZE)
+    print("Organizing data, checking for duplicates (it might take a while...)\n")
+    parser.make_samples(out_path, downloaded_filename, PARSED_SAMPLES_FOLDER_NAME, BATCH_FILE_SIZE, BATCH_REQUEST_SIZE)
     print("Finished parsing data\n")
     # pre-proecessing the data
     print("Clustering data for train-test independence\n")
