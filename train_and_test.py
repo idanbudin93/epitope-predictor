@@ -13,7 +13,6 @@ from pathlib import Path
 from training_helpers import BatchResult, EpochResult, FitResult
 
 
-
 class Trainer(abc.ABC):
     """
     A class abstracting the various tasks of training models.
@@ -116,11 +115,12 @@ class Trainer(abc.ABC):
                 if save_checkpoint and checkpoint_filename is not None:
                     saved_state = dict(best_acc=best_acc,
                                        ewi=epochs_without_improvement,
-                                   model_state=self.model.state_dict(),
-                                   hidden_dim=self.model.hidden_dim,
-                                   n_layers=self.model.num_layers,
-                                   bidirectional=(self.model.multiply_bi == 2),
-                                   dropout=self.model.dropout)
+                                       model_state=self.model.state_dict(),
+                                       hidden_dim=self.model.hidden_dim,
+                                       n_layers=self.model.num_layers,
+                                       bidirectional=(
+                                           self.model.multiply_bi == 2),
+                                       dropout=self.model.dropout)
                     torch.save(saved_state, checkpoint_filename)
                     print(f'*** Saved checkpoint {checkpoint_filename} '
                           f'at epoch {epoch+1}')
@@ -262,8 +262,8 @@ class LSTMTrainer(Trainer):
         max_obj_vec = max_obj.indices.view(-1)
         class_1_idx = torch.where(y_vec == 1)[0]
         class_0_idx = torch.where(y_vec == 0)[0]
-        fn = torch.zeros(1,1)
-        fp = torch.zeros(1,1)
+        fn = torch.zeros(1, 1)
+        fp = torch.zeros(1, 1)
         if len(class_1_idx) == 0:
             # all elements are negative
             cur_accuracy = torch.true_divide(
@@ -313,7 +313,6 @@ class LSTMTrainer(Trainer):
         x, y = batch
         x = x.to(self.device, dtype=torch.float)  # (B,S,V)
         y = y.to(self.device, dtype=torch.long)  # (B,S)
-
 
         # Forward pass
         self.optimizer.zero_grad()

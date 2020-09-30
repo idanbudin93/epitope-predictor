@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as functional
 from torch import Tensor
 
-def char_maps():
 
+def char_maps():
     """
     Create mapping from the unique chars in pretein sequences to integers and
     vice-versa.
@@ -18,14 +18,15 @@ def char_maps():
 
     """
 
-    unique = sorted(["\n", "a", "r", "n", "d", "c", "q", "e", "g", "h", "i", "l", "k", "m", "f", "p", "s", "t", "w", "y", "v", "x", "b", "j", "z", "u"])
+    unique = sorted(["\n", "a", "r", "n", "d", "c", "q", "e", "g", "h", "i", "l",
+                     "k", "m", "f", "p", "s", "t", "w", "y", "v", "x", "b", "j", "z", "u"])
     char_to_idx = {unique[i]: i for i in range(len(unique))}
     idx_to_char = {i: unique[i] for i in range(len(unique))}
-    
+
     return char_to_idx, idx_to_char
 
-def upload_sequences(proteins_path):
 
+def upload_sequences(proteins_path):
     """
     Upload a batch of data to the memory.
     :param protein_path: path to a clean batch of proteins
@@ -35,12 +36,11 @@ def upload_sequences(proteins_path):
     with open(proteins_path, 'r') as f:
         proteins = f.read()
         print(f'Batch length: {len(proteins)} chars')
-        
+
     return proteins
 
 
 def chars_to_onehot(proteins: str, char_to_idx: dict) -> Tensor:
-
     """
     Embed a sequence of amino-acid-chars as a tensor containing the one-hot encoding
     of each char. A one-hot encoding means that each char is represented as
@@ -64,7 +64,6 @@ def chars_to_onehot(proteins: str, char_to_idx: dict) -> Tensor:
 
 
 def onehot_to_chars(embedded_seq: Tensor, idx_to_char: dict) -> str:
-
     """
     Reverses the embedding of a text sequence, producing back the original
     sequence as a string.
@@ -77,13 +76,15 @@ def onehot_to_chars(embedded_seq: Tensor, idx_to_char: dict) -> str:
 
     device = embedded_seq.device
     range_tensor = torch.tensor(range(len(idx_to_char)), device=device)
-    text_idx = torch.masked_select(range_tensor, embedded_seq.to(torch.bool)).tolist()
+    text_idx = torch.masked_select(
+        range_tensor, embedded_seq.to(torch.bool)).tolist()
     result = ''.join(map(lambda x: idx_to_char[x], text_idx))
     return result
 
 # EMBEDDING ADDITION - TODO - erase those
-def onehot_to_idx(embedded_seq: Tensor, idx_range: int) -> Tensor:
 
+
+def onehot_to_idx(embedded_seq: Tensor, idx_range: int) -> Tensor:
     """
     Partially reverses the embedding of a text sequence, producing a sequence
     of one-hot embedding indices.
@@ -95,32 +96,33 @@ def onehot_to_idx(embedded_seq: Tensor, idx_range: int) -> Tensor:
 
     device = embedded_seq.device
     range_tensor = torch.tensor(range(idx_range), device=device)
-    text_idx = torch.masked_select(range_tensor, embedded_seq.to(torch.bool)).tolist()
+    text_idx = torch.masked_select(
+        range_tensor, embedded_seq.to(torch.bool)).tolist()
     return text_idx
 # EMBEDDING ADDITION - TODO - erase those
 
+
 def get_tag(x):
+    """
+    :param x: an amino acid letter, in lowercase or uppercase.
+    :return: 1 if this amino acid is inside an epitope, else 0.
+    """
 
-  """
-  :param x: an amino acid letter, in lowercase or uppercase.
-  :return: 1 if this amino acid is inside an epitope, else 0.
-  """
+    return 1 if x.isupper() else 0
 
-  return 1 if x.isupper() else 0
-  
+
 def from_tag(x, y):
+    """
+    for a lowercase letter x, choose if should be an uppercase or not based on y. 
+    :param x: amino acid lowercase letter
+    :param y: tagging of the letter, 1 if it is inside an epitope or else 0. 
+    """
 
-  """
-  for a lowercase letter x, choose if should be an uppercase or not based on y. 
-  :param x: amino acid lowercase letter
-  :param y: tagging of the letter, 1 if it is inside an epitope or else 0. 
-  """
+    return x.upper() if y == 1 else x.lower()
 
-  return x.upper() if y == 1 else x.lower()
 
 def chars_to_labelled_samples(amino_acid_seq: str, char_to_idx: dict, seq_len: int,
                               device='cpu'):
-
     """
     :param amino_acid_seq: The char sequence to split.
     :param char_to_idx: The mapping to create and embedding with.
@@ -149,7 +151,6 @@ def chars_to_labelled_samples(amino_acid_seq: str, char_to_idx: dict, seq_len: i
 
 
 def hot_softmax(y, dim=0, temperature=1.0):
-
     """
     A softmax which first scales the input by 1/temperature and
     then computes softmax along the given dimension.
@@ -168,49 +169,48 @@ def hot_softmax(y, dim=0, temperature=1.0):
 
 
 def get_probabilities(model, protein_seq, char_maps, T):
+    """
+    get the probability for each amino acid to be part of an epitope
+    :param model: the current LSTM model 
+    :param protein_seq: a protein sequence that should by classified
+    :param char_maps: function that indices all letters (=amino acids)
+    :param T: tempeture for the hot_softmax function 
+    :return: for each letter, its probabilty to be inside an epitope or not
+    """
 
-  """
-  get the probability for each amino acid to be part of an epitope
-  :param model: the current LSTM model 
-  :param protein_seq: a protein sequence that should by classified
-  :param char_maps: function that indices all letters (=amino acids)
-  :param T: tempeture for the hot_softmax function 
-  :return: for each letter, its probabilty to be inside an epitope or not
-  """
+    device = next(model.parameters()).device
+    char_to_idx, _ = char_maps
 
-  device = next(model.parameters()).device
-  char_to_idx, _ = char_maps 
-
-  with torch.no_grad(): #meaning: don't train now
-    embedded_input = chars_to_onehot(protein_seq, char_to_idx)
-    y, _ = model(embedded_input.to(
-        dtype=torch.float, device=device).unsqueeze(0))
-    y.squeeze_(dim=0)
-    distribution = hot_softmax(y, 1, T) 
-    return distribution
+    with torch.no_grad():  # meaning: don't train now
+        embedded_input = chars_to_onehot(protein_seq, char_to_idx)
+        y, _ = model(embedded_input.to(
+            dtype=torch.float, device=device).unsqueeze(0))
+        y.squeeze_(dim=0)
+        distribution = hot_softmax(y, 1, T)
+        return distribution
 
 
 def capitalize_by_labels(amino_acid_seq, labels):
-
-  """
-  Capitalize a lowercase amino acid sequence according to the label of each letter
-  :param amino_acid_seq: lowercase amino acid sequence
-  :param labels: for each letter, 1 if it is in epitope or else 0
-  :return: the capitalized sequnce according to the labels 
-  """
-  return ''.join(list(map(lambda x,y: from_tag(x,y), amino_acid_seq, labels)))
+    """
+    Capitalize a lowercase amino acid sequence according to the label of each letter
+    :param amino_acid_seq: lowercase amino acid sequence
+    :param labels: for each letter, 1 if it is in epitope or else 0
+    :return: the capitalized sequnce according to the labels 
+    """
+    return ''.join(list(map(lambda x, y: from_tag(x, y), amino_acid_seq, labels)))
 
 
 def capitalize(amino_acid_seq, distribution):
-  """
-  Capitalize a lowercase amino acid sequence according to the given distribution.
-  For each letter, capitalize it if it is more probable according to the distribution.
-  :param amino_acid_seq: a sequence of amino acids in lowercase letters.  
-  :param distribution: for each amino acid, it's probabillity to be in an epitope and not to be in one. 
-  :return: the capitalized sequence according to the distribution
-  """
-  maxind = torch.max(distribution, 1)
-  return capitalize_by_labels(amino_acid_seq, maxind.indices)
+    """
+    Capitalize a lowercase amino acid sequence according to the given distribution.
+    For each letter, capitalize it if it is more probable according to the distribution.
+    :param amino_acid_seq: a sequence of amino acids in lowercase letters.  
+    :param distribution: for each amino acid, it's probabillity to be in an epitope and not to be in one. 
+    :return: the capitalized sequence according to the distribution
+    """
+    maxind = torch.max(distribution, 1)
+    return capitalize_by_labels(amino_acid_seq, maxind.indices)
+
 
 class LSTMTagger(nn.Module):
 
@@ -234,9 +234,9 @@ class LSTMTagger(nn.Module):
         super(LSTMTagger, self).__init__()
 
         if bidirectional:
-          self.multiply_bi = 2
+            self.multiply_bi = 2
         else:
-          self.multiply_bi = 1 
+            self.multiply_bi = 1
 
         self.hidden_dim = hidden_dim
         self.num_layers = n_layers
@@ -250,11 +250,12 @@ class LSTMTagger(nn.Module):
             lstm_dim = embedding_dim
         # EMBEDDING ADDITION
 
-        self.lstm = nn.LSTM(lstm_dim, hidden_dim, n_layers, batch_first=True, dropout=drop_prob, bidirectional=bidirectional)
+        self.lstm = nn.LSTM(lstm_dim, hidden_dim, n_layers, batch_first=True,
+                            dropout=drop_prob, bidirectional=bidirectional)
 
         # The linear layer that maps from hidden state space to tag space
         self.hidden2tag = nn.Linear(hidden_dim*self.multiply_bi, tagset_size)
-    
+
     def forward(self, input_batch: Tensor, states: Tensor = None):
         """
         implements the forwars pass for the model
@@ -268,23 +269,23 @@ class LSTMTagger(nn.Module):
         # EMBEDDING ADDITION
         if hasattr(self, 'embedding'):
             embed_batch = torch.tensor([
-              onehot_to_idx(seq, 26) for seq in input_batch
+                onehot_to_idx(seq, 26) for seq in input_batch
             ], dtype=torch.long, device=self.device)
             lstm_batch = self.embedding(embed_batch)
         # EMBEDDING ADDITION
 
         if states == None:
-          states = self.init_hidden(input_batch.shape[0], self.device)            
+            states = self.init_hidden(input_batch.shape[0], self.device)
         lstm_out, (hn, cn) = self.lstm(lstm_batch, states)
         tag_space = self.hidden2tag(lstm_out)
         return tag_space, (hn, cn)
 
     def init_hidden(self, batch_size, device):
-      """
-      random initializer for the hidden states
-      :param batch_size:
-      :param device: device to work on ('cuda' or 'cpu')
-      :return: tuple of randomly initialized hidden states and cell states
-      """
-        return (torch.rand(self.num_layers*self.multiply_bi, batch_size, self.hidden_dim, device = device),
-                torch.rand(self.num_layers*self.multiply_bi, batch_size, self.hidden_dim, device = device))
+        """
+        random initializer for the hidden states
+        :param batch_size:
+        :param device: device to work on ('cuda' or 'cpu')
+        :return: tuple of randomly initialized hidden states and cell states
+        """
+        return (torch.rand(self.num_layers*self.multiply_bi, batch_size, self.hidden_dim, device=device),
+                torch.rand(self.num_layers*self.multiply_bi, batch_size, self.hidden_dim, device=device))

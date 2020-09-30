@@ -25,7 +25,6 @@ import train_and_test
 
 # =================Constants=========================
 TAGSET_SIZE = 2
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # parser constants
 TCELL_DOWNLOAD_URL = "https://www.iedb.org/downloader.php?file_name=doc/tcell_full_v3.zip"
 TCELL_CSV_FILENAME = 'tcell_proteins.csv'
@@ -49,10 +48,9 @@ RANDOM_UPPERCASE_THRESHOLD = 0.3
 seq_len = 1024
 batch_size = 1
 train_test_ratio = 0.8
-
+# ==============Globals=====================
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # =================================================
-
-
 
 
 def make_labelled_samples(out_path, clean_processed_samples_dir, char_to_idx, idx_to_char, train_test_ratio):

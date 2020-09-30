@@ -38,4 +38,3 @@ class FitResult(NamedTuple):
     test_acc: List[float]
     test_fp: List[float]
     test_fn: List[float]
-
