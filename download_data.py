@@ -1,7 +1,3 @@
-__author__ = 'Smadar Gazit'
-
-#download all human proteins from swissprot:https://www.uniprot.org/uniprot/?query=*&fil=organism%3A%22Homo+sapiens+%28Human%29+%5B9606%5D%22+AND+reviewed%3Ayes&desc=no&sort=organism
-
 import os
 import pathlib 
 import urllib

@@ -16,6 +16,8 @@
     "output_template": "samples\\processed\\cv-group{}.fasta"
   },
   "lstm_model_config": {
+    "working_dir": "samples",
+    "processed_folder_name": "processed",
     "checkpoint_file": "./checkpoints/lstm",
     "training_plot_name": "training.png",
     "hidden_dim": 64,
@@ -27,6 +29,7 @@
     "early_stopping": 5,
     "seq_len" : 1024,
     "batch_size" : 1,
-    "train_test_ratio" : 0.8
+    "train_test_ratio" : 0.8,
+    "random_uppercase_threshold": 0.3
   }
 }

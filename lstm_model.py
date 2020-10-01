@@ -1,5 +1,3 @@
-__author__ = 'Smadar Gazit'
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as functional
@@ -99,7 +97,6 @@ def onehot_to_idx(embedded_seq: Tensor, idx_range: int) -> Tensor:
     return text_idx
 
 
-
 def get_tag(x):
     """
     :param x: an amino acid letter, in lowercase or uppercase.
@@ -114,6 +111,7 @@ def from_tag(x, y):
     for a lowercase letter x, choose if should be an uppercase or not based on y. 
     :param x: amino acid lowercase letter
     :param y: tagging of the letter, 1 if it is inside an epitope or else 0. 
+    :return: the amino acid letter with the right capitaliztion
     """
 
     return x.upper() if y == 1 else x.lower()
@@ -168,12 +166,13 @@ def hot_softmax(y, dim=0, temperature=1.0):
 
 def get_probabilities(model, protein_seq, char_maps, T):
     """
-    get the probability for each amino acid to be part of an epitope
-    :param model: the current LSTM model 
-    :param protein_seq: a protein sequence that should by classified
-    :param char_maps: function that indices all letters (=amino acids)
-    :param T: tempeture for the hot_softmax function 
-    :return: for each letter, its probabilty to be inside an epitope or not
+    Returns the probability for each amino acid to be part of an epitope.
+    :param model: the current LSTM model
+    :param protein_seq: a protein sequence to be classified
+    :param char_maps: a tuple of mapping functions from amino acid letter to id and vice-versa.
+    :param T: temperature for the hot_softmax function.
+    :return: A tensor of dimensions [2, sequence length] 
+        representing for each letter, its probabilty to be inside an epitope (and not to be in one).
     """
 
     device = next(model.parameters()).device
@@ -190,7 +189,7 @@ def get_probabilities(model, protein_seq, char_maps, T):
 
 def capitalize_by_labels(amino_acid_seq, labels):
     """
-    Capitalize a lowercase amino acid sequence according to the label of each letter
+    Capitalize a lowercase amino acid sequence according to the label of each letter.
     :param amino_acid_seq: lowercase amino acid sequence
     :param labels: for each letter, 1 if it is in epitope or else 0
     :return: the capitalized sequnce according to the labels 
@@ -217,17 +216,17 @@ class LSTMTagger(nn.Module):
         :param hidden_dim: The number of features in the hidden state h
         :param n_layers: Number of recurrent layers. E.g., setting num_layers=2 would mean
                      stacking two LSTMs together to form a stacked LSTM, with the second 
-                     LSTM taking in outputs of the first LSTM and computing the final results. Default: 1
+                     LSTM taking in outputs of the first LSTM and computing the final results.
         :param input_dim: The number of expected features in the input x (at each timestep)
         :param tagset_size: the size of tagging space (=how many labels). 
         :param drop_prob: If non-zero, introduces a Dropout layer on the outputs 
                           of each LSTM layer except the last layer, with dropout probability
-                          equal to drop_prob. Default: 0
+                          equal to drop_prob.
         :param bidirectional: if set to True, the LSTM model is bidirectional. 
-        :param device: the device to work on (options: 'cpu', 'cuda'). 
+        :param device: the device to work on (i.e. 'cpu', 'cuda'). 
         :param embedding_dim: output dimension of the embedding layer. 
                               Can be set to None to disable word embedding.
-                              Default: False.
+                              Default: None.
         """
         super(LSTMTagger, self).__init__()
 
@@ -242,47 +241,50 @@ class LSTMTagger(nn.Module):
         self.dropout = drop_prob
         lstm_dim = input_dim
 
-        # EMBEDDING ADDITION
+        # Embedding layer
+        self.embedding_dim = embedding_dim
         if embedding_dim:
             self.embedding = nn.Embedding(input_dim, embedding_dim)
             lstm_dim = embedding_dim
-        # EMBEDDING ADDITION
-
+        # LSTM layer
         self.lstm = nn.LSTM(lstm_dim, hidden_dim, n_layers, batch_first=True,
                             dropout=drop_prob, bidirectional=bidirectional)
-
-        # The linear layer that maps from hidden state space to tag space
+        # Linear layer from hidden to tag space
         self.hidden2tag = nn.Linear(hidden_dim*self.multiply_bi, tagset_size)
 
     def forward(self, input_batch: Tensor, states: Tensor = None):
         """
-        implements the forwars pass for the model
+        Implements the forward pass for the model
         :param input_batch: batch of amino acid sequences
-        :param states: hidden states and cell states 
-        :return: 
+        :param states: a tuple of hidden states and cell states
+        :return: A tuple:
         - tag space: for each letter, it's score for each of the possible labels
         - (hn, cn) a tuple of hn - hidden state and cn - cell state 
         """
         lstm_batch = input_batch
-        # EMBEDDING ADDITION
-        if hasattr(self, 'embedding'):
+        # word embedding of the amino acids
+        if self.embedding_dim:
             embed_batch = torch.tensor([
                 onehot_to_idx(seq, 26) for seq in input_batch
             ], dtype=torch.long, device=self.device)
             lstm_batch = self.embedding(embed_batch)
-        # EMBEDDING ADDITION
 
+        # initialize the hidden states randomly
         if states == None:
             states = self.init_hidden(input_batch.shape[0], self.device)
+
+        # run the lstm layer
         lstm_out, (hn, cn) = self.lstm(lstm_batch, states)
+
+        # map the hidden states to tag space
         tag_space = self.hidden2tag(lstm_out)
         return tag_space, (hn, cn)
 
     def init_hidden(self, batch_size, device):
         """
-        random initializer for the hidden states
-        :param batch_size:
-        :param device: device to work on ('cuda' or 'cpu')
+        Randomly initializes a hidden states tuple
+        :param batch_size: the batch size
+        :param device: device to work on (i.e. 'cuda' or 'cpu')
         :return: tuple of randomly initialized hidden states and cell states
         """
         return (torch.rand(self.num_layers*self.multiply_bi, batch_size, self.hidden_dim, device=device),

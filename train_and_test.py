@@ -1,5 +1,3 @@
-__author__ = 'Smadar Gazit'
-
 import abc
 import os
 import sys
@@ -11,6 +9,23 @@ from torch.utils.data import DataLoader
 from typing import Callable, Any
 from pathlib import Path
 from training_helpers import BatchResult, EpochResult, FitResult
+
+
+class LocalMaximumError(Exception):
+    """
+    An error class used to indicate that a local maximum was reached and a re-training is needed
+    """
+    @staticmethod
+    def is_all_of_one_kind_local_maximum(fp_rate, fn_rate, threshold) -> bool:
+        """
+        Checks whether the ratio between the FP rate an FN rate is too low/high,
+        indicating a certain kind of local maximum which is usually lower then the actual maximum.
+        :param fp_rate: The false-positive rate
+        :param fn_rate: The false-negative rate
+        :param threshold: The threshold for the fp to fn ratio.
+        :return True iff the ratio between the FP rate an FN rate is below the threshold
+        """
+        return fp_rate == 0 or fn_rate == 0 or fp_rate / fn_rate < threshold or fn_rate / fp_rate < threshold
 
 
 class Trainer(abc.ABC):
@@ -44,7 +59,7 @@ class Trainer(abc.ABC):
             print_every=1, post_epoch_fn=None, **kw) -> FitResult:
         """
         Trains the model for multiple epochs with a given training set,
-        and calculates validation loss over a given validation set.
+        and calculates test loss over a given test set.
         :param dl_train: Dataloader for the training set.
         :param dl_test: Dataloader for the test set.
         :param num_epochs: Number of epochs to train for.
@@ -55,7 +70,8 @@ class Trainer(abc.ABC):
             test loss improvement for this number of epochs.
         :param print_every: Print progress every this number of epochs.
         :param post_epoch_fn: A function to call after each epoch completes.
-        :return: A FitResult object containing train and test losses per epoch.
+        :return: A FitResult object containing train and test accuracy,
+            loss, fp rate and fn rate per epoch.
         """
 
         actual_num_epochs = 0
@@ -98,6 +114,9 @@ class Trainer(abc.ABC):
                 test_acc.append(test_result.accuracy)
                 test_fp.append(test_result.fp_rate)
                 test_fn.append(test_result.fn_rate)
+                if LocalMaximumError.is_all_of_one_kind_local_maximum(train_result.fp_rate, train_result.fn_rate, 0.05):
+                    raise LocalMaximumError()
+
                 if epoch >= 1:
                     if test_result.accuracy < best_acc + 0.1:
                         epochs_without_improvement += 1
@@ -129,9 +148,9 @@ class Trainer(abc.ABC):
                     post_epoch_fn(epoch, test_result, train_result, verbose)
         except KeyboardInterrupt:
             print('\n *** Training interrupted by user')
-        finally:
-            return FitResult(actual_num_epochs,
-                             train_loss, train_acc, train_fp, train_fn, test_loss, test_acc, test_fp, test_fn)
+        except Exception as e:
+            raise e
+        return FitResult(actual_num_epochs, train_loss, train_acc, train_fp, train_fn, test_loss, test_acc, test_fp, test_fn)
 
     def train_epoch(self, dl_train: DataLoader, **kw) -> EpochResult:
         """
@@ -187,7 +206,7 @@ class Trainer(abc.ABC):
     @staticmethod
     def _foreach_batch(dl: DataLoader,
                        forward_fn: Callable[[Any], BatchResult],
-                       verbose=True, max_batches=None) -> EpochResult:
+                       verbose=True) -> EpochResult:
         """
         Evaluates the given forward-function on batches from the given
         dataloader, and prints progress along the way.
@@ -197,10 +216,6 @@ class Trainer(abc.ABC):
         fp = 0
         fn = 0
         num_batches = len(dl.batch_sampler)
-
-        if max_batches is not None:
-            if max_batches < num_batches:
-                num_batches = max_batches
 
         if verbose:
             pbar_file = sys.stdout
@@ -242,20 +257,29 @@ class LSTMTrainer(Trainer):
 
     def train_epoch(self, dl_train: DataLoader, **kw):
         """
-         :param dl_train: Dataloader for the training set.
-         """
+        See Trainer.train_epoch(...)
+        Note that this method restart the hidden state in each epoch.
+        """
         self.h = None
         return super().train_epoch(dl_train, **kw)
 
     def test_epoch(self, dl_test: DataLoader, **kw):
         """
+        See Trainer.test_epoch(...)
+        Note that this method restart the hidden state in each epoch.
         """
         self.h = None
         return super().test_epoch(dl_test, **kw)
 
     @staticmethod
-    def calc_accuracy(predicted, y):
+    def calc_accuracy(predicted, y) -> tuple:
         """
+        Calculates the weighted accuracy of the predicted batch labels, 
+        given the true binary labels.
+        The weighted accuracy is defined as TP/(2*(TP+FN)) + TN/(2*(TN+FP)).
+        :param predicted: a Tensor of the prediction for each observation in a batch
+        :param y: a Tensor of the true labels
+        :return: A tuple of (the weighted accuracy, the fp rate, the fn rate)
         """
         max_obj = torch.max(predicted, 1)
         y_vec = y.view(-1)
@@ -285,11 +309,15 @@ class LSTMTrainer(Trainer):
         return cur_accuracy, fp, fn
 
     @staticmethod
-    def avg_binary_loss(loss_fn):
+    def avg_binary_loss(loss_fn) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
         """
+        A decorator function that accepts a loss function that accepts a weight argument (such as nn.CrossEntropy)
+        and returns a new loss function that calculates the binary weighted loss function,
+        that is with the weights proportional to: [1/# of 0's, 1/# of 1's].
+        In case there are 0's or no 1's, the weights are [0,  1] and [1, 0] accordingly.
 
-        :return: function that averges the given loss function between 
-                 in-epitopes letters and out
+        :param loss_fn: The loss function to wrap
+        :return: the decorated loss function
         """
         def avg_binary_cross_entropy(predicted, real):
             count_of_1 = real.sum()
@@ -306,10 +334,9 @@ class LSTMTrainer(Trainer):
     def train_batch(self, batch) -> BatchResult:
         """
          Train the LSTM model on one batch of data.
-         :param batch: batch of samples
-         :return:  A BatchResult object containing  A FitResult object containing train losses and accuracy
+         :param batch: batch of embedded samples
+         :return: A BatchResult object containing train loss, accuracy, fp rate and fn rate
         """
-        # TODO:
         x, y = batch
         x = x.to(self.device, dtype=torch.float)  # (B,S,V)
         y = y.to(self.device, dtype=torch.long)  # (B,S)
@@ -325,7 +352,7 @@ class LSTMTrainer(Trainer):
 
         # Backward pass (BPTT)
         loss.backward()
-        #torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
+        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
 
         # Update params
         self.optimizer.step()
@@ -340,12 +367,10 @@ class LSTMTrainer(Trainer):
 
     def test_batch(self, batch) -> BatchResult:
         """
-        Evaluate the LSTM model on one a batch of data.
-        :param Batch: batch of embedded samples
-        :return:
-
+         Evaluates the LSTM model on one batch of data.
+         :param batch: batch of embedded samples
+         :return: A BatchResult object containing test loss, accuracy, fp rate and fn rate
         """
-        # TODO
         x, y = batch
         x = x.to(self.device, dtype=torch.float)  # (B,S,V)
         y = y.to(self.device, dtype=torch.long)  # (B,S)
