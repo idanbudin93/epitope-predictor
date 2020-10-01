@@ -53,6 +53,7 @@ def plot_hot_cold(y_data, save_path=None, prob_color=None, threshold=0.9, plot_t
         
     if save_path:
     	plt.savefig(f'{save_path}.png')
+    plt.close('all')
 
 
 if __name__ == "__main__":
