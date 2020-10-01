@@ -81,8 +81,6 @@ def onehot_to_chars(embedded_seq: Tensor, idx_to_char: dict) -> str:
     result = ''.join(map(lambda x: idx_to_char[x], text_idx))
     return result
 
-# EMBEDDING ADDITION - TODO - erase those
-
 
 def onehot_to_idx(embedded_seq: Tensor, idx_range: int) -> Tensor:
     """
@@ -99,7 +97,7 @@ def onehot_to_idx(embedded_seq: Tensor, idx_range: int) -> Tensor:
     text_idx = torch.masked_select(
         range_tensor, embedded_seq.to(torch.bool)).tolist()
     return text_idx
-# EMBEDDING ADDITION - TODO - erase those
+
 
 
 def get_tag(x):

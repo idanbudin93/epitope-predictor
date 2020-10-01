@@ -18,7 +18,10 @@
     "bidirectional": 1,
     "dropout": 0.5,
     "lr": 0.001,
-    "num_epochs": 50,
-    "early_stopping": 8
+    "num_epochs": 30,
+    "early_stopping": 5,
+    "seq_len" : 1024,
+    "batch_size" : 1,
+    "train_test_ratio" : 0.8
   }
 }

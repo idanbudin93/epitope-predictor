@@ -15,8 +15,7 @@ import torch
 PATH_TO_MODEL_FILE = 'saved_model'
 TAGSET_SIZE = 2
 
-#needs to have the model
-#model = 
+
 def get_probabilities(antigen):
 
     """

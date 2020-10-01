@@ -33,7 +33,6 @@ PARSED_SAMPLES_FOLDER_NAME = 'parsed_samples'
 BATCH_FILE_SIZE = 5000  # soft limit
 BATCH_REQUEST_SIZE = 25
 
-
 # proccessing samples
 PROCESSED_FOLDER_NAME = "processed"
 CLEAN_PROCESSED_SAMPLES = 'processed_clean_samples'
@@ -44,12 +43,6 @@ CONFIG_FILE = "config.json"
 # checks for random model initialization
 RANDOM_UPPERCASE_THRESHOLD = 0.3
 
-# ==============Parameters=====================
-
-# Dataset parameters
-seq_len = 1024
-batch_size = 1
-train_test_ratio = 0.8
 # ==============Globals=====================
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 with open(CONFIG_FILE) as config_file:
@@ -60,6 +53,8 @@ with open(CONFIG_FILE) as config_file:
 def make_labelled_samples(out_path, clean_processed_samples_dir, char_to_idx, idx_to_char, train_test_ratio):
     processed_clean_antigens = pathlib.Path(
         out_path, clean_processed_samples_dir)
+
+    seq_len = config["seq_len"]
 
     samples_list = []
     labels_list = []
@@ -99,6 +94,9 @@ def make_labelled_samples(out_path, clean_processed_samples_dir, char_to_idx, id
 
 
 def get_dataloaders(train_samples, train_labels, test_samples, test_labels):
+    seq_len = config["seq_len"]
+    batch_size = config["batch_size"]
+
     ds_train = torch.utils.data.TensorDataset(train_samples, train_labels)
     dl_train = torch.utils.data.DataLoader(
         ds_train, batch_size=batch_size, shuffle=False, drop_last=True)
@@ -193,9 +191,8 @@ def main():
     print("Finished parsing data\n")
     # pre-proecessing the data
     print("Clustering data for train-test independence\n")
-    # parsed_samples_paths = get_parsed_samples_paths(
-    #    out_path, PARSED_SAMPLES_FOLDER_NAME)
-    #run_processing.main(['-i', *parsed_samples_paths])
+    parsed_samples_paths = get_parsed_samples_paths(out_path, PARSED_SAMPLES_FOLDER_NAME)
+    run_processing.main(['-i', *parsed_samples_paths])
     print("Done clustering\n")
     parser.Clean_id_lines_from_samples(
         out_path, PROCESSED_FOLDER_NAME, CLEAN_PROCESSED_SAMPLES)
@@ -206,7 +203,7 @@ def main():
     vocab_len = len(char_to_idx)
 
     train_samples, train_labels, test_samples, test_labels = make_labelled_samples(
-        out_path, CLEAN_PROCESSED_SAMPLES, char_to_idx, idx_to_char, train_test_ratio)
+        out_path, CLEAN_PROCESSED_SAMPLES, char_to_idx, idx_to_char, config["train_test_ratio"])
 
     # ====================== MODEL AND TRAINING ======================
 

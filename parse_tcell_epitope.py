@@ -21,8 +21,8 @@ EPITOPE_COLUMNS = {
     'protein page': 9
 }
 
-# Entrez.api_key = '<<<maintainer eutils api key>>>'
-# Entrez.email = 'maintainer@email.com'
+Entrez.api_key = 'cc86c67528c5c05e90be06cace971d287b08'
+Entrez.email = 'omershapira@mail.tau.ac.il'
 Entrez.tool = 'epitope_parser'
 
 
