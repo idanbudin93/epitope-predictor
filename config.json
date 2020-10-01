@@ -12,7 +12,7 @@
   },
   "lstm_model_config": {
     "checkpoint_file": "./checkpoints/lstm",
-    "training_plot_path": "training.png",
+    "training_plot_name": "training.png",
     "hidden_dim": 64,
     "n_layers": 2,
     "bidirectional": 1,

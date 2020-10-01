@@ -16,6 +16,8 @@ RUN pip install torch==1.6.0+cpu -f https://download.pytorch.org/whl/torch_stabl
 #copy code files to image owned by local user
 RUN mkdir code
 COPY ./interface_code ./code
+COPY ./saved_model.pt ./saved_model.pt 
+RUN chmod 755 ./saved_model.pt 
 RUN chown -hR $local_user ./code
 
 # change to local user and run entrypoint
