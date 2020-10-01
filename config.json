@@ -1,4 +1,9 @@
 {
+  "fetch_config": {
+    "entrez_api_key": "",
+    "entrez_api_mail": "",
+    "entrez_api_tool": "epitope-parser"
+  },
   "preprocess_config": {
     "homologs_threshold": 0.8,
     "homologs_clustering_word_size": 5,

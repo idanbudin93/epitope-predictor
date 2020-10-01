@@ -4,10 +4,14 @@ import pathlib
 import csv
 import re
 import xml.etree.ElementTree as et
-import pathlib
+import json
 
 from Bio import Entrez, SeqIO
+
+from download_data import download_data
+
 DEBUG = False
+CONFIG_FILE = "config.json"
 EPITOPE_SECTION = (9, 24)
 EPITOPE_COLUMNS = {
     'epitope page': 0,
@@ -20,10 +24,6 @@ EPITOPE_COLUMNS = {
     'protein name': 8,
     'protein page': 9
 }
-
-Entrez.api_key = 'cc86c67528c5c05e90be06cace971d287b08'
-Entrez.email = 'omershapira@mail.tau.ac.il'
-Entrez.tool = 'epitope_parser'
 
 
 def read_csv(file_path):
@@ -322,7 +322,19 @@ def get_output_path(out_dir, file_id):
     )
 
 
-def make_samples(directory_path, source_path, parsed_samples_folder_name, batch_file_size, batch_request_size):
+def set_entrez_api(entrez_config=None):
+    if not entrez_config:
+        with open(CONFIG_FILE) as config_file:
+            entrez_config = json.load(config_file)["fetch_config"]
+
+    Entrez.api_key = entrez_config['entrez_api_key']
+    Entrez.email = entrez_config['entrez_api_mail']
+    Entrez.tool = entrez_config['entrez_api_tool']
+
+
+def make_samples(directory_path, source_path, parsed_samples_folder_name,
+                 batch_file_size, batch_request_size, custom_api=None):
+    set_entrez_api(custom_api)
     # the path to a desired output directory.
     dst_path = pathlib.Path(directory_path, parsed_samples_folder_name)
     # the path to tcell epitope csv source file.
@@ -373,3 +385,9 @@ def Clean_id_lines_from_samples(working_directory_path, input_directory_name, cl
                     cleaned_file.write(line)
         cleaned_file.close()
     return
+
+
+if __name__ == '__main__':
+    csv_path = download_data('./data', 'tcell_full_v3.csv',
+                             "https://www.iedb.org/downloader.php?file_name=doc/tcell_full_v3.zip")
+    make_samples('./data', 'tcell_full_v3.csv', 'parsed', 5000, 20)
