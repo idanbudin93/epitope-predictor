@@ -131,7 +131,11 @@ dmypy.json
 # vscode
 .vscode/
 
+# intellij
+.idea/
+
 output/
 samples/
 /main.ipynb
-/checkpoints/
+checkpoints/
+
