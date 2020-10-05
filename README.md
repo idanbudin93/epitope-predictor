@@ -1,6 +1,6 @@
-### User Guide:
+### User Guide
 
-#### General description:
+#### General Description:
 
 The epitope predictor tool takes a file containing one or more amino acid sequences in fasta format
 and, using a trained LSTM neural network model, calculates the probability of each amino acid to be
@@ -32,7 +32,7 @@ Also, since output files are named based on fasta description, a file containing
 with the same fasta description or empty description lines could result in unexpected behavior and
 faults in the program.
 
-#### Tool container:
+#### Tool's Container:
 
 The tool is encapsulated inside a docker container. As such, it is required to install docker on the
 device running the tool. For more information about installing docker, see here.
@@ -46,7 +46,7 @@ wishes to add. One necessary option is to mount the directory containing the inp
 volume on the container. For more information about docker volumes and their use can be found
 here.
 
-#### Tool use and options:
+#### Tool's Use and Options:
 
 The epitope predictor tool is used much like a UNIX command line function, with the syntax epitope-
 predictor [options] [input file path]. This syntax is affixed after the docker run options.
@@ -70,7 +70,7 @@ The tool has several options regarding its output:
 **Note:** at any time, you can run the tool with the `--help` flag to get a reminder of the tool's optional
 parameters and additional info.
 
-#### Run example:
+#### Run Example:
 
 A typical run of the tool might look like this:
 
@@ -117,7 +117,7 @@ Windows Powershell.
     to re-fetch the data, it is recommended to provide the data fetching script with an
     Eutils API key.
 
-### data fetching maintenance guide
+#### Data Fetching Maintenance Guide
 
 **Description**
 
@@ -331,7 +331,7 @@ call “python model_main.py”. No command line arguments or extra parameters a
 necessary, as all parameters are taken from the config.json file. For quicker training, it is
 recommended to make sure a GPU with CUDA is available for pytorch to use.
 
-**Config parameters**
+**Config Parameters**
 
 The “lstm_model_config” section in the config.json file contains the, and it holds the values
 we used for our final model. Though, they can’t be controlled there. Here are some
@@ -360,9 +360,9 @@ explanations for each of them:
     types of embedding, such as the N-gram model for different N parameters.
 - We implemented batching but, in the end, didn’t use it. Consider trying it too.
 
-### User interface
+### User Interface
 
-**design:**
+**Design:**
 
 The current user interface of the tool is a simple wrapper of the trained model,
 encapsulated in a Docker container. It is based on the python:3-slim image for reduce
